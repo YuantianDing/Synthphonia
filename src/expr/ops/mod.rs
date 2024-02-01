@@ -10,6 +10,7 @@ pub mod str;
 use self::context::Context;
 pub use self::str::*;
 
+use crate::text::parsing::*;
 pub mod base;
 pub use self::base::*;
 
@@ -76,7 +77,6 @@ pub enum Op1Enum {
     RetainLN,
     Uppercase,
     Lowercase,
-    ParseDate,
     AsMonth,
     AsDay,
     AsYear,
@@ -85,8 +85,11 @@ pub enum Op1Enum {
     FormatWeekday,
     FormatDate,
     ParseTime,
-    FormatTime,
+    ParseDate,
     ParseInt,
+    FormatTime,
+    ParseMonth,
+    ParseWeekday,
     FormatInt,
 }
 impl std::fmt::Display for Op1Enum {

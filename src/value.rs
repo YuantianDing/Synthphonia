@@ -130,7 +130,7 @@ impl Value {
 }
 
 
-#[derive(DebugCustom, Display, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(DebugCustom, Display, PartialEq, Eq, Hash, Clone, Copy, From)]
 pub enum ConstValue {
     #[debug(fmt = "null")]
     #[display(fmt = "null")]
@@ -147,6 +147,17 @@ pub enum ConstValue {
     #[debug(fmt = "{:?}", _0)]
     #[display(fmt = "{:?}", _0)]
     Float(F64)
+}
+
+impl From<usize> for ConstValue {
+    fn from(value: usize) -> Self {
+        Self::Int(value as i64)
+    }
+}
+impl From<u32> for ConstValue {
+    fn from(value: u32) -> Self {
+        Self::Int(value as i64)
+    }
 }
 
 impl ConstValue {
@@ -178,6 +189,16 @@ impl ConstValue {
         }
     }
 
+}
+
+pub fn consts_to_value(consts: Vec<ConstValue>) -> Value {
+    match consts[0] {
+        ConstValue::Null => todo!(),
+        ConstValue::Bool(_) => Value::Bool(consts.into_iter().map(|a| a.as_bool().unwrap()).galloc_scollect()),
+        ConstValue::Int(_) => Value::Int(consts.into_iter().map(|a| a.as_i64().unwrap()).galloc_scollect()),
+        ConstValue::Str(_) => Value::Str(consts.into_iter().map(|a| a.as_str().unwrap()).galloc_scollect()),
+        ConstValue::Float(_) => Value::Float(consts.into_iter().map(|a| a.as_float().unwrap()).galloc_scollect()),
+    }
 }
 
 #[macro_export]

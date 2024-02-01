@@ -11,12 +11,6 @@ use super::list::to_index;
 use super::{Op1, Op3, Op2};
 
 
-new_op1!(ParseFloat, "float.fmt",
-    Int -> Str { |s1| {
-        todo!()
-    }}
-);
-
 new_op1!(FormatFloat, "float.parse",
     Str -> Int { |s1| {
         todo!()

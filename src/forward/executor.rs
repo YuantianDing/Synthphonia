@@ -6,15 +6,11 @@ use derive_more::{Constructor, Deref, From, Into};
 use itertools::Itertools;
 
 use crate::{
-    debg,
-    expr::{
+    backward::{ Deducer, DeducerEnum}, debg, debg2, expr::{
         cfg::{Cfg, ProdRule},
         context::Context,
         Expr,
-    },
-    info,
-    utils::UnsafeCellExt,
-    value::{ConstValue, Value}, log, parser::problem::PBEProblem, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, backward::{ Deducer, DeducerEnum}, galloc::AllocForAny, debg2,
+    }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, text::parsing::TextObjData, utils::UnsafeCellExt, value::{ConstValue, Value}
 };
 
 use super::{
@@ -48,7 +44,9 @@ impl Executor {
         let data = Data::new(&cfg, &ctx);
         let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i)).collect_vec();
         let other = OtherData { all_str_const, problems: UnsafeCell::new(HashMap::new()) };
-        Self { counter: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(), cur_size: 0.into(), cur_nt: 0.into() }
+        let exec = Self { counter: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(), cur_size: 0.into(), cur_nt: 0.into() };
+        TextObjData::build_trie(&exec);
+        exec
     }
     pub fn collect_expr(&self, e: &'static Expr, v: Value) {
         unsafe { self.expr_collector.as_mut().push((e, v)) }
@@ -76,13 +74,13 @@ impl Executor {
     pub fn count(&self) -> usize { self.counter.get() }
     
     #[inline]
-    pub fn enum_expr(&self, e: Expr, v: Value) -> Result<(), ()> {
+    pub fn enum_expr(&'static self, e: Expr, v: Value) -> Result<(), ()> {
         if self.counter.get() % 10000 == 0 {
             info!("Searching size={} [{}] - {:?} {:?}", self.cur_size.get(), self.counter.get(), e, v);
         }
         self.counter.update(|x| x + 1);
         
-        if let Some(e) = self.cur_data().update(e, v)? {
+        if let Some(e) = self.cur_data().update(self, e, v)? {
             self.collect_expr(e,v)
         }
         Ok(())
@@ -94,7 +92,7 @@ impl Executor {
                 self.cur_size.set(size);
                 self.cur_nt.set(nt);
                 info!("Enumerating size={} nt={} with - {}", size, ntdata.name, self.counter.get());
-                
+                self.cur_data().to.enumerate(self)?;
                 for rule in &ntdata.rules {
                     rule.enumerate(self)?;
                 }

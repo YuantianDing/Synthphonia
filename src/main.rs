@@ -16,6 +16,7 @@ pub mod value;
 pub mod expr;
 pub mod forward;
 pub mod backward;
+pub mod text;
 use std::fs;
 
 use clap::Parser;

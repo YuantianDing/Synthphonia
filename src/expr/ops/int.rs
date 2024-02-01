@@ -19,12 +19,6 @@ new_op1!(ToStr, "int.to.str",
     }}
 );
 
-new_op1!(ParseInt, "int.fmt",
-    Int -> Str { |s1| {
-        todo!()
-    }}
-);
-
 new_op1!(FormatInt, "int.parse",
     Str -> Int { |s1| {
         todo!()

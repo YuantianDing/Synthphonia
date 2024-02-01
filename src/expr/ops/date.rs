@@ -15,11 +15,7 @@ use super::list::to_index;
 use super::{Op1, Op3, Op2};
 
 
-new_op1_opt!(ParseDate, "date.parse",
-    Str -> Int { |s1| {
-        todo!()
-    }}
-);
+
 
 new_op1_opt!(FormatDate, "date.fmt",
     Int -> Str { |s1| {
@@ -79,11 +75,6 @@ new_op1_opt!(AsWeekDay, "date.weekday",
     }}
 );
 
-new_op1_opt!(ParseTime, "time.parse",
-    Str -> Int { |s1| {
-        todo!()
-    }}
-);
 
 new_op1_opt!(FormatTime, "time.fmt",
     Str -> Int { |s1| {

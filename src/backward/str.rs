@@ -83,39 +83,7 @@ impl StrDeducer {
         // let eq_count = v.iter().zip(delimiter.iter()).filter(|(x, y)| x == y).count();
         let split1 = pending_if(contain_count >= self.split_once, self.split1(v, delimiter, exec));
         let ite_concat = pending_if(start_count >= self.ite_concat.0, self.ite_concat(v, delimiter, exec));
-
         
-        // if let Some((a, b)) = split_once(v, delimiter, exec.data.listsubseq.len() > 0) {
-        //     debg!("Task#{} Commom Substring: {:?} {:?} {:?}", currect_task_id(), s, delimiter, exec.data.all_eq.get(delimiter.into()));
-        //     let sb: &[&str] = b.try_into().unwrap();
-        //     let this = self.clone();
-        //     let t = task::spawn(async move {
-        //         let concat = this.concat.then_some(this.concat(a, exec, b, delimiter, sb));
-        //         let join = this.join.map(|a| Problem { value: value_split(v, delimiter), nt: a }.deduce(exec));
-        //         match (concat, join) {
-        //             (None, None) => panic!("Should remove this Deducer"),
-        //             (None, Some(fut)) => fut.await,
-        //             (Some(fut), None) => fut.await,
-        //             (Some(f1), Some(f2)) => select! { e1 = f1.fuse() => e1, e2 = f2.fuse() => e2},
-        //         }
-        //     });
-        //     Some(t.tasko())
-        // } else if let Some(boolnt) = self.ite {
-        //     if  {
-        //         debg!("A Possible Split: {:?} {:?} {:?}", s, delimiter, exec.data.all_eq.get(delimiter.into()));
-        //         let target = v.iter().zip(delimiter.iter()).map(|(x, y)| x == y).galloc_collect();
-        //         let v: Value = v.iter().zip(target.iter()).map(|(s, t)| if *t { "" } else { *s }).galloc_scollect().into();
-        //         let cond = exec.data.all_eq.acquire(Value::Bool(target)).await;
-        //         exec.data.substr.try_at(v, move |value| {
-        //             let value: &[&str] = value.try_into().unwrap();
-        //             if itertools::izip!(value, v, target).all(|(v, s, t)| if *t { true } else { s == v }) {
-        //                 let left = exec.data.all_eq.get(delimiter.into());
-        //                 let right = exec.data.all_eq.get(value.into());
-        //                 Some(expr!(Ite {cond} {left} {right}).galloc())
-        //             } else { None }
-        //         }).await
-        //     } else { never!() }
-        // } else { never!() }
         select_ret(pin!(split1), pin!(ite_concat)).await
     }
     #[inline]

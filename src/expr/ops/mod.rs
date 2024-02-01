@@ -1,0 +1,249 @@
+use enum_dispatch::enum_dispatch;
+
+use super::*;
+use crate::parser::config::Config;
+use crate::{value::Value, expr};
+use std::future::Future;
+use std::path::Display;
+
+pub mod str;
+use self::context::Context;
+pub use self::str::*;
+
+pub mod base;
+pub use self::base::*;
+
+pub mod int;
+pub use self::int::*;
+pub mod float;
+pub use self::float::*;
+
+pub mod list;
+pub use self::list::*;
+
+
+pub mod date;
+pub use date::*;
+pub mod macros;
+
+#[enum_dispatch]
+pub trait Op1: Clone + std::fmt::Display {
+    fn cost(&self) -> usize;
+    fn try_eval(&self, a1: Value) -> Option<Value>;
+}
+
+impl Op1Enum {
+    pub fn eval(&self, a1: Value) -> Value {
+        let a = self.try_eval(a1).unwrap_or_else(|| panic!("failed evaluate {}", self));
+        a
+    }
+}
+
+#[enum_dispatch]
+pub trait Op2 : Clone + std::fmt::Display {
+    fn cost(&self) -> usize;
+    fn try_eval(&self, a1: Value, a2: Value) -> Option<Value>;
+}
+
+impl Op2Enum {
+    pub fn eval(&self, a1: Value, a2: Value) -> Value { self.try_eval(a1, a2).unwrap_or_else(|| panic!("failed evaluate {}", self)) }
+}
+
+#[enum_dispatch]
+pub trait Op3 : Clone + std::fmt::Display {
+    fn cost(&self) -> usize;
+    fn try_eval(&self, a1: Value, a2: Value, a3: Value) -> Option<Value>;
+}
+
+impl Op3Enum {
+    pub fn eval(&self, a1: Value, a2: Value, a3: Value) -> Value { self.try_eval(a1, a2, a3).unwrap_or_else(|| panic!("failed evaluate {}", self)) }
+}
+
+#[enum_dispatch(Op1)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum Op1Enum {
+    Len,
+    ToInt,
+    ToStr,
+    Neg,
+    IsPos,
+    IsZero,
+    IsNatural,
+    RetainLl,
+    RetainLc,
+    RetainN,
+    RetainL,
+    RetainLN,
+    Uppercase,
+    Lowercase,
+    ParseDate,
+    AsMonth,
+    AsDay,
+    AsYear,
+    AsWeekDay,
+    FormatMonth,
+    FormatWeekday,
+    FormatDate,
+    ParseTime,
+    FormatTime,
+    ParseInt,
+    FormatInt,
+}
+impl std::fmt::Display for Op1Enum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if let Self::$op(a) = self {
+                    return write!(f, "{a}");
+                }
+            )*
+        }}
+        crate::for_all_op1!();
+        Ok(())
+    }
+}
+
+impl Op1Enum {
+    pub fn from_name(name: &str, config: &Config) -> Self {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if $op::name() == name {
+                    return $op::from_config(config).into();
+                }
+            )*
+        }}
+        crate::for_all_op1!();
+        match name {
+            "str.len" => Len::from_config(config).into(),
+            _ => panic!("Unknown Operator {}", name),
+        }
+    }
+    pub fn name(&self) -> &'static str {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if let Self::$op(_) = self {
+                    return $op::name();
+                }
+            )*
+        }}
+        crate::for_all_op1!();
+        panic!()
+    }
+}
+
+#[enum_dispatch(Op2)]
+#[derive(Clone, PartialEq, Eq)]
+pub enum Op2Enum {
+    Concat,
+    Eq,
+    At,
+    PrefixOf,
+    SuffixOf,
+    Contains,
+    Split,
+    Join,
+    Count,
+    Add,
+    Sub,
+    Head,
+    Tail,
+    Filter,
+    Map,
+    TimeFloor,
+    TimeAdd,
+    Floor, Round, Ceil
+}
+
+impl std::fmt::Display for Op2Enum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if let Self::$op(a) = self {
+                    return write!(f, "{a}");
+                }
+            )*
+        }}
+        crate::for_all_op2!();
+        Ok(())
+    }
+}
+
+impl Op2Enum {
+    pub fn from_name(name: &str, config: &Config) -> Self {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if $op::name() == name {
+                    return $op::from_config(config).into();
+                }
+            )*
+        }}
+        crate::for_all_op2!();
+        match name {
+            "str.at" => At::from_config(config).into(),
+            "+" => Add::from_config(config).into(),
+            "-" => Sub::from_config(config).into(),
+            _ => panic!("Unknown Operator: {}", name),
+        }
+    }
+    pub fn name(&self) -> &'static str {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if let Self::$op(_) = self {
+                    return $op::name();
+                }
+            )*
+        }}
+        crate::for_all_op2!();
+        panic!()
+    }
+}
+
+#[enum_dispatch(Op3)]
+#[derive(Clone, PartialEq, Eq)]
+pub enum Op3Enum {
+    Replace,
+    Ite,
+    SubStr,
+    IndexOf,
+}
+
+impl std::fmt::Display for Op3Enum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if let Self::$op(a) = self {
+                    return write!(f, "{a}");
+                }
+            )*
+        }}
+        crate::for_all_op3!();
+        Ok(())
+    }
+}
+
+impl Op3Enum {
+    pub fn from_name(name: &str, config: &Config) -> Self {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if $op::name() == name {
+                    return $op::from_config(config).into();
+                }
+            )*
+        }}
+        crate::for_all_op3!();
+        panic!("Unknown Operator: {}", name);
+    }
+    pub fn name(&self) -> &'static str {
+        macro_rules! _do { ($($op:ident)*) => {
+            $(
+                if let Self::$op(_) = self {
+                    return $op::name();
+                }
+            )*
+        }}
+        crate::for_all_op3!();
+        panic!()
+    }
+}
+
+pub mod op_impl;

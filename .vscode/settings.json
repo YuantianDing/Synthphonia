@@ -1,0 +1,92 @@
+{
+  "symbolMasks.masks": [
+      {
+        "language": "rust",
+        "patterns": [
+            {
+                "pattern": "String|Vec|Option|Result|Cell|len\\(\\)|\\.as_bytes\\(\\)|\\.try_into\\(\\)|\\.try_collect\\(\\)|\\.to_owned\\(\\)|\\.as_str\\(\\)|\\.collect_vec\\(\\)|\\.as_slice\\(\\)|RefCell|Box|mut|\\.unwrap\\(\\)|\\.borrow\\(\\)|\\.borrow_mut\\(\\)|\\.as\\(\\)|\\.as_mut\\(\\)|\\.collect\\(\\)|\\.into\\(\\)|Ok\\(|Err\\(|Some\\(|None|\\.get\\(\\)|\\.iter\\(\\)|\\.iter_mut\\(\\)|\\.into_iter\\(\\)|\\.(clone|cloned)\\(\\)| as (f|u)(8|16|32|64|size)|return Err|format!|\\.separated_string\\(\\)|static|const ",
+                "replace": {
+                  "String": {"text": "𝕊"},
+                  "Vec": {"text": "𝕍"},
+                  "Option": {"text": "O?"},
+                  "Result": {"text": "R?"},
+                  "Cell": {"text": "ⓒ"},
+                  "RefCell": {"text": "&ⓒ"},
+                  "Box": {"text": "𝔹"},
+                  "mut": {"text": "𝜇", "fontWeight": "bold"},
+                  ".unwrap()": {"text": "!"},
+                  ".borrow()": {"text" : "!"},
+                  ".borrow_mut()": {"text" : "!"},
+                  ".as()": {"text" : "!"},
+                  ".as_bytes()": {"text" : "!"},
+                  ".as_mut()": {"text" : "!"},
+                  ".as_str()": {"text" : "!"},
+                  ".into()": {"text" : "!"},
+                  ".get()": {"text" : "!"},
+                  ".as_slice()": {"text" : "!"},
+                  "len()": {"text" : "𝓁"},
+                  ".to_owned()": {"text" : "!"},
+                  ".collect()": {"text" : "⁺"},
+                  ".collect_vec()": {"text" : "⁺"},
+                  ".try_collect()": {"text" : ".⁺"},
+                  ".try_into()": {"text" : ".!"},
+                  // ".set(": {"text" : ".set("},
+                  "Ok(": {"text": "✓("},
+                  "Some(": {"text": "✓("},
+                  "Err(": {"text": "×("},
+                  "None": {"text": "×"},
+                  ".iter()": {"text": "ⁱ"},
+                  ".iter_mut()": {"text": "ⁱᵐ"},
+                  ".into_iter()": {"text": "ⁱ!"},
+                  ".clone()" : { "text" : "©" },
+                  ".cloned()" : { "text" : "©" },
+                  " as f32" : { "text" : "f", "fontWeight": "bold"},
+                  " as f64" : { "text" : "f", "fontWeight": "bold"},
+                  " as usize" : { "text" : "u", "fontWeight": "bold"},
+                  " as u8" : { "text" : "u", "fontWeight": "bold"},
+                  " as u16" : { "text" : "u", "fontWeight": "bold"},
+                  " as u32" : { "text" : "u", "fontWeight": "bold"},
+                  " as u64" : { "text" : "u", "fontWeight": "bold"},
+                  "return Err" : { "text" : "throw " },
+                  "format!" : { "text" : "f!", "fontWeight": "bold" },
+                  ".separated_string()" : { "text" : ":seps", "fontWeight": "bold"},
+                  "static" : { "text" : "𝕤", "color": "#888888"},
+                  "const " : { "text" : "𝕔 ", "fontWeight": "bold"},
+                  "ref" : { "text" : "&", "fontWeight": "bold"}
+                }
+            },
+            {
+              "pattern": "\\.galloc\\(\\)|\\.galloc_mut\\(\\)|\\.galloc_slice_sized\\(\\)|\\.galloc_slice\\(\\)|\\.galloc_owned\\(\\)|\\.galloc_str\\(\\)",
+              "replace": "ª"
+            },
+            {
+              "pattern": "Default::default\\(\\)",
+              "replace": "__"
+            },
+            {
+              "pattern": "\\.unwrap_or_else",
+              "replace": "! => "
+            },
+            {
+              "pattern": "macro_rules! _do ",
+              "replace": "marco_do!"
+            },
+        ]
+      },
+      {
+        "language": "python",
+        "patterns": [
+            {
+                "pattern": "\\{\\{|\\}\\}",
+                "replace": {
+                  "{{": {"text": "{", "fontWeight": "bold"},
+                  "}}": {"text": "}", "fontWeight": "bold"},
+                }
+            }
+        ]
+      }
+    ],
+    "rust-analyzer.linkedProjects": [
+      "./Cargo.toml"
+    ]
+}

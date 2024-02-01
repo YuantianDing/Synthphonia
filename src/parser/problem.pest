@@ -1,0 +1,37 @@
+letter = { 'a'..'z' | 'A'..'Z' }
+special_symbols = { "~" | "!" | "@" | "$" | "%" | "^" | "&" | "*" | "_" | "-" | "+" | "=" | "<" | ">" | "." | "?" | "/" }
+digit = { '0'..'9' }
+
+symbol = @{ (letter | special_symbols) ~ (letter | special_symbols | digit)* }
+numeral = @{ (digit | "." | "+" | "-")+ }
+raw_string = { (!("\\" | "\"") ~ ANY)+ }
+strlit = @{ "\"" ~ (raw_string | "\\" ~ ANY)* ~ "\"" }
+boollit = @{ "true" | "false" | "null"}
+value = { numeral | strlit | boollit }
+start_comment = @{ (";" ~ (!newline ~ ANY)*)? }
+config_entry = { "#" ~ symbol ~ ":" ~ (value|symbol) }
+config = { config_entry+ }
+
+logic = {"(" ~ "set-logic" ~ symbol ~ ")"}
+typ = { symbol | ("(" ~ "List" ~ symbol ~ ")") }
+arg = { "(" ~ symbol ~ typ ~ ")" }
+arglist = { "(" ~ arg* ~ ")" }
+prod = { (value | symbol | "(" ~ symbol+ ~ config? ~ ")") }
+prods = { "(" ~ prod+ ~ ")" ? }
+nt = { "(" ~ symbol ~ typ ~ prods ~ config? ~ ")" }
+cfg = { "(" ~ nt+ ~ config? ~ ")" }
+synthfun = { "(" ~ "synth-fun" ~ symbol ~ arglist ~ typ ~ cfg ~ ")" }
+synthsubproblem = { "(" ~ "synth-subproblem" ~ symbol ~ arglist ~ typ ~ cfg ~ ")" }
+synthproblem = { (synthfun | synthsubproblem)+ }
+
+example = { "(" ~ "constraint" ~ "(" ~ "=" ~ "(" ~ symbol ~ value* ~ ")" ~ value ~ ")" ~ ")"}
+examples = { example* }
+check_synth = { "(check-synth)" }
+file = { start_comment ~ logic ~ synthproblem ~ examples ~ check_synth ~ WHITESPACE* }
+
+
+newline        = _{ "\n" | "\r\n" }
+WHITESPACE     = _{ " " | "\t" | newline | COMMENT }
+line_comment   = _{ (";" ~ (!newline ~ ANY)*) }
+block_comment  = _{ "/*" ~ (block_comment | !"*/" ~ ANY)* ~ "*/" }
+COMMENT        = _{ block_comment | line_comment }

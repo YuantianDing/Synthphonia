@@ -87,10 +87,10 @@ fn alloc_iter2<T>(iter: impl Iterator<Item= T>) -> &'static [T] {
         vec.into_bump_slice()
     })
 }
-pub fn new_bvec<T>() -> BVec<'static, T> {
+pub fn new_bvec<T>(cap: usize) -> BVec<'static, T> {
     THR_ARENA.with(|arena| {
         let p = arena as *const Bump;
-        unsafe { BVec::new_in(p.as_ref().unwrap()) }
+        unsafe { BVec::with_capacity_in(cap, p.as_ref().unwrap()) }
     })
 }
 

@@ -65,6 +65,14 @@ pub fn currect_task_id() -> usize {
     CUR_TASK.set(a);
     id
 }
+pub fn currect_task_id_opt() -> usize {
+    let a = CUR_TASK.take();
+    a.upgrade().map(|x| {
+        let id = x.0.id();
+        CUR_TASK.set(a);
+        id
+    }).unwrap_or(0)
+}
 pub fn top_task() -> TaskRc {
     unsafe { TOP_TASK.clone().unwrap() }
 }
@@ -89,6 +97,10 @@ pub fn generate_task_id() -> usize {
     }
 }
 
+pub fn number_of_task() -> usize {
+    unsafe { TASK_COUNTER }
+}
+
 impl <T: Future + 'static> Task for TaskT<T> {
     #[inline(always)]
     fn is_ready(&self) -> bool {
@@ -99,6 +111,7 @@ impl <T: Future + 'static> Task for TaskT<T> {
     }
     fn poll_task(self: Pin<Rc<Self>>) -> bool {
         if self.is_ready() { return true; }
+        debug_assert!(currect_task_id_opt() < self.id);
         
         let fut = unsafe { Pin::new_unchecked(&self.fut) };
         if let Ok(mut fut) = fut.try_borrow_mut() {
@@ -109,8 +122,8 @@ impl <T: Future + 'static> Task for TaskT<T> {
             let last_task = CUR_TASK.replace(taskrc::TaskRc(self.clone()).downgrade());
             let result = r.poll(&mut cx);
             CUR_TASK.set(last_task);
-            
             self.result.set(result);
+
             self.is_ready()
         } else { false }
     }

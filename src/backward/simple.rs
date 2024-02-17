@@ -4,6 +4,7 @@ use super::Deducer;
 
 
 
+#[derive(Debug)]
 pub struct SimpleDeducer {
     pub nt: usize
 }

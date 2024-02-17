@@ -20,8 +20,8 @@
                 }
             },
             "args": [
-                "-vvv", 
-                "test/phone-4.sl"
+                "-vv", 
+                "test/test.sl"
                 // "/home/yuantiand/string/duet/tests/string/phone-10.sl",
                 // "--cfg",
             ],

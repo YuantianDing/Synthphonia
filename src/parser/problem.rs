@@ -23,13 +23,21 @@ pub fn new_costom_error_pos<'i>(msg: String, pos: Position<'i>) -> Error { Error
 
 #[derive(DebugCustom, PartialEq, Eq, Hash, Clone)]
 #[debug(fmt = "{} : {:?} -> {:?}", _0, _1, _2)]
-pub struct NonTerminal(pub String, pub Type, pub Vec<ProdRule>);
+pub struct NonTerminal(pub String, pub Type, pub Vec<ProdRule>, pub Config);
 
 impl NonTerminal {
     pub fn parse(pair: Pair<'_, Rule>) -> Result<NonTerminal, Error> {
-        let [symbol, typ, prods]: [_; 3] = pair.into_inner().collect_vec().try_into().unwrap();
+        let mut vec = pair.into_inner().collect_vec();
+        let config = vec.last().unwrap().clone();
+        let config = if config.as_rule() == Rule::config {
+            vec.pop();
+            Config::parse(config.clone())?
+        } else {
+            Config::new()
+        };
+        let [symbol, typ, prods]: [_; 3] = vec.try_into().unwrap();
         let prods: Vec<_> = prods.into_inner().map(|x| ProdRule::parse(x)).try_collect()?;
-        Ok(NonTerminal(symbol.as_str().into(), Type::parse(typ)?, prods))
+        Ok(NonTerminal(symbol.as_str().into(), Type::parse(typ)?, prods, config))
     }
 }
 
@@ -55,10 +63,18 @@ impl Cfg {
         let start = NonTerminal::parse(cfgiter.peek().unwrap().clone())?;
         let start = if let [ProdRule::Var(s, _)] =  start.2.as_slice() { cfgiter.next(); s } else { &start.0 };
         let start = start.clone();
-        let inner: Vec<_> = cfgiter.map(|x| NonTerminal::parse(x)).try_collect()?;
+        let mut inner: Vec<_> = cfgiter.map(|x| NonTerminal::parse(x)).try_collect()?;
         let mut cfg = Cfg{start, inner, config};
-        // cfg.sort();
+        cfg.reset_start();
         Ok(cfg)
+    }
+    pub fn reset_start(&mut self) {
+        let start_index = self.inner.iter().position(|x| x.0 == self.start).unwrap();
+        let start_nt = self.inner.remove(start_index);
+        self.inner.insert(0, start_nt);
+    }
+    pub fn get_nt_by_type(&self, ty: &Type) -> String {
+        self.inner.iter().find_map(|x| (x.1 == *ty).then_some(x.0.clone())).unwrap()
     }
     // pub fn sort(&mut self) {
     //     let mut sort = topological_sort::TopologicalSort::<NonTerminal>::new();
@@ -81,7 +97,7 @@ impl Cfg {
     // }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SynthFun {
     pub name: String,
     pub args: Vec<(String, Type)>,
@@ -123,6 +139,7 @@ impl Type {
             "Int" => Self::Int,
             "String" => Self::Str,
             "Bool" => Self::Bool,
+            "Float" => Self::Float,
             _ => panic!("Unknown Type {}", symbol.as_str()),
         };
         if pair.as_str().contains("List") {

@@ -7,12 +7,10 @@ use itertools::Itertools;
 
 use crate::{
     backward::{ Deducer, DeducerEnum}, debg, debg2, expr::{
-        cfg::{Cfg, ProdRule},
-        context::Context,
-        Expr,
-    }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, text::parsing::TextObjData, utils::UnsafeCellExt, value::{ConstValue, Value}
+         cfg::{Cfg, ProdRule}, context::Context, Expr
+    }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Value}, warn
 };
-
+use crate::expr;
 use super::{
     future::taskrc::{TaskRc, TaskTRc, TaskORc},
     data::{self, all_eq, size::EV, Data},
@@ -28,6 +26,7 @@ pub struct OtherData {
 
 pub struct Executor {
     pub counter: Cell<usize>,
+    pub subproblem_count: Cell<usize>,
     pub cur_size: Cell<usize>,
     pub cur_nt: Cell<usize>,
     pub ctx: Context,
@@ -39,12 +38,15 @@ pub struct Executor {
 }
 
 impl Executor {
+    pub fn problem_count(&self) -> usize{
+        self.subproblem_count.get()
+    }
     pub fn new(ctx: Context, cfg: Cfg) -> Self {
         let all_str_const = cfg[0].rules.iter().flat_map(|x| if let ProdRule::Const(ConstValue::Str(s)) = x { Some(*s) } else { None }).collect();
         let data = Data::new(&cfg, &ctx);
         let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i)).collect_vec();
         let other = OtherData { all_str_const, problems: UnsafeCell::new(HashMap::new()) };
-        let exec = Self { counter: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(), cur_size: 0.into(), cur_nt: 0.into() };
+        let exec = Self { counter: 0.into(), subproblem_count: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(), cur_size: 0.into(), cur_nt: 0.into() };
         TextObjData::build_trie(&exec);
         exec
     }
@@ -57,16 +59,24 @@ impl Executor {
     pub fn cur_data(&self) -> &Data {
         &self.data[self.cur_nt.get()]
     }
-    pub fn spawn_task(&'static self, nt: usize, value: Value) -> TaskORc<&'static Expr> {
-        let problems = unsafe { self.other.problems.as_mut() };
-        match problems.entry((nt, value)) {
-            Entry::Occupied(o) => o.get().clone(),
-            Entry::Vacant(e) => {
-                let t = task::spawn(self.deducers[nt].deduce(self, value)).tasko();
-                e.insert(t.clone());
-                t
-            }
+    #[inline]
+    pub async fn solve_task(&'static self, nt: usize, value: Value) -> &'static Expr {
+        if let Some(e) = self.data[nt].all_eq.at(value) {
+            return e;
         }
+        self.spawn_task(nt, value).await
+    }
+    pub fn spawn_task(&'static self, nt: usize, value: Value) -> TaskORc<&'static Expr> {
+        self.subproblem_count.update(|x| x+1);
+        task::spawn(self.deducers[nt].deduce(self, value)).tasko()
+        // match problems.entry((nt, value)) {
+        //     Entry::Occupied(o) => o.get().clone(),
+        //     Entry::Vacant(e) => {
+        //         let t = ;
+        //         e.insert(t.clone());
+        //         t
+        //     }
+        // }
     }
 
     pub fn size(&self) -> usize { self.cur_size.get() }
@@ -79,6 +89,9 @@ impl Executor {
             info!("Searching size={} [{}] - {:?} {:?}", self.cur_size.get(), self.counter.get(), e, v);
         }
         self.counter.update(|x| x + 1);
+        // if expr!(Replace (Replace [0] "Inc" "Company") (Concat " " "Company") "").contains(&e) {
+        //     warn!("{e:?} {v:?}");
+        // }
         
         if let Some(e) = self.cur_data().update(self, e, v)? {
             self.collect_expr(e,v)

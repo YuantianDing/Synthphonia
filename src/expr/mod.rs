@@ -9,7 +9,7 @@ pub mod ops;
 
 use derive_more::DebugCustom;
 
-use self::{context::Context, ops::{Op1Enum, Op2Enum, Op3Enum}};
+use self::{context::Context, ops::{Op1, Op1Enum, Op2, Op2Enum, Op3, Op3Enum}};
 #[derive(DebugCustom, PartialEq, Eq, Clone)]
 pub enum Expr {
     #[debug(fmt = "{:?}", _0)]
@@ -32,6 +32,27 @@ impl Expr {
             Expr::Op1(op1, a1) => op1.eval(a1.eval(ctx)),
             Expr::Op2(op2, a1, a2) => op2.eval(a1.eval(ctx), a2.eval(ctx)),
             Expr::Op3(op3, a1, a2, a3) => op3.eval(a1.eval(ctx), a2.eval(ctx), a3.eval(ctx)),
+        }
+    }
+    pub fn cost(&self) -> usize {
+        match self {
+            Expr::Const(c) => 1,
+            Expr::Var(index) => 1,
+            Expr::Op1(op1, a1) => op1.cost() + a1.cost(),
+            Expr::Op2(op2, a1, a2) => op2.cost() + a1.cost() + a2.cost(),
+            Expr::Op3(op3, a1, a2, a3) => op3.cost() + a1.cost() + a2.cost() + a3.cost(),
+        }
+    }
+    pub fn contains(&self, other: &Expr) -> bool {
+        if self == other { true } 
+        else {
+            match self {
+                Expr::Const(_) => false,
+                Expr::Var(_) => false,
+                Expr::Op1(_, e1) => e1.contains(other),
+                Expr::Op2(_, e1, e2) => e1.contains(other) || e2.contains(other),
+                Expr::Op3(_, e1, e2, e3) => e1.contains(other) || e2.contains(other) || e3.contains(other),
+            }
         }
     }
 }

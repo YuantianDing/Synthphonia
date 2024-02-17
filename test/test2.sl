@@ -3,19 +3,14 @@
 (synth-fun f ((name String)) String
     (
       (Start String (ntString))
-      (ntString String (" " name
+      (ntString String ("" name
             (str.++ ntString ntString) 
-            (str.head ntString ntFloat #cost:2)
-            (str.tail ntString ntFloat #cost:2)
+            (str.head ntString ntInt #cost:2)
+            (str.tail ntString ntInt #cost:2)
 
-            (list.at ntList ntFloat) 
+            (list.at ntList ntInt) 
             (str.join ntList ntString)
-
-            (float.fmt ntFloat)
-            (int.fmt ntInt)
-            (month.fmt ntInt)
-            (weekday.fmt ntInt)
-            (time.fmt ntTime)
+            (int.to.str ntInt)
 
             (str.retainLl ntString #cost:4)
             (str.retainLc ntString #cost:4)
@@ -26,38 +21,18 @@
             (str.lowercase ntString #cost:4)
 
             (ite ntBool ntString ntString)
-      ) #str.decay_rate:400 )
+      ) )
       (ntInt Int (-1 1 2 4
             (+ ntInt ntInt)
             (int.neg ntInt)
-
-            (date.month ntDate)
-            (date.day ntDate)
-            (date.year ntDate)
-      ))
-      (ntFloat Float (-1.0 0.0 1.0 2.0 5.0
-            (list.flen ntString)
-            (str.fcount ntString ntString)
-            (str.to.float ntString)
-            (float.+ ntFloat ntFloat)
-            (float.neg ntFloat)
-            (float.shl10 ntFloat ntInt)
-            (float.floor ntFloat ntFloat #cost:2)
-            (float.ceil ntFloat ntFloat #cost:2)
-            (float.round ntFloat ntFloat #cost:2)
-      ))
-      (ntDate Int (
-            (date.parse ntString)
-      ))
-      (ntTime Int (15 30 60 3600
-            (time.parse ntString)
-            (time.floor ntTime ntTime)
-            (time.* ntTime ntInt)
+            (list.len ntString)
+            (str.count ntString ntString)
+            (str.to.int ntString)
       ))
       (ntBool Bool (
-            (float.is0 ntFloat #cost:2)
-            (float.is+ ntFloat)
-            (float.not- ntFloat)
+            (int.is0 ntInt)
+            (int.is+ ntInt)
+            (int.isN ntInt)
       ))
       (ntList (List String) (
             (str.split ntString ntString)

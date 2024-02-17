@@ -11,6 +11,7 @@ use self::context::Context;
 pub use self::str::*;
 
 use crate::text::parsing::*;
+use crate::text::formatting::*;
 pub mod base;
 pub use self::base::*;
 
@@ -61,7 +62,7 @@ impl Op3Enum {
 }
 
 #[enum_dispatch(Op1)]
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Op1Enum {
     Len,
     ToInt,
@@ -81,16 +82,27 @@ pub enum Op1Enum {
     AsDay,
     AsYear,
     AsWeekDay,
-    FormatMonth,
-    FormatWeekday,
-    FormatDate,
     ParseTime,
     ParseDate,
     ParseInt,
-    FormatTime,
     ParseMonth,
     ParseWeekday,
+    ParseFloat,
     FormatInt,
+    FormatFloat,
+    FormatTime,
+    FormatMonth,
+    FormatWeekday,
+    FNeg,
+    FAbs,
+    FIsPos,
+    FExp10,
+    IntToFloat,
+    FloatToInt,
+    StrToFloat,
+    FIsZero,
+    FNotNeg,
+    FLen,
 }
 impl std::fmt::Display for Op1Enum {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -154,7 +166,8 @@ pub enum Op2Enum {
     Map,
     TimeFloor,
     TimeAdd,
-    Floor, Round, Ceil
+    Floor, Round, Ceil,
+    FAdd, FSub, FFloor, FRound, FCeil, FCount, FShl10, TimeMul, StrAt
 }
 
 impl std::fmt::Display for Op2Enum {
@@ -182,7 +195,6 @@ impl Op2Enum {
         }}
         crate::for_all_op2!();
         match name {
-            "str.at" => At::from_config(config).into(),
             "+" => Add::from_config(config).into(),
             "-" => Sub::from_config(config).into(),
             _ => panic!("Unknown Operator: {}", name),

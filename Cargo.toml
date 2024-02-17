@@ -22,6 +22,7 @@ iset = "0.2.2"
 itertools = "0.11.0"
 joinery = "3.1.0"
 kv-trie-rs = "0.1.2"
+lazy_static = "1.4.0"
 noop-waker = "0.1.0"
 pest = "2.7.3"
 pest_derive = "2.7.3"
@@ -33,3 +34,6 @@ serde = { version = "1.0.183", features = ["derive"] }
 smallvec = "1.11.1"
 topological-sort = "0.2.2"
 you-can = "0.0.14"
+
+# [profile.release]
+# debug = true

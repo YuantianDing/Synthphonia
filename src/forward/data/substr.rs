@@ -60,9 +60,13 @@ pub struct Data(UnsafeCell<Vec<(usize, StrData<Value>)>>);
 
 impl Data {
     pub fn new(output: Value, indices: &[usize]) -> Self {
-        let output: &'static [&'static str] = output.try_into().unwrap();
-        let a = indices.iter().flat_map(|i| if i >= &output.len() { None } else { Some((*i, StrData::<Value>::new(output[*i])))}).collect_vec();
-        Data(a.into())
+        if indices.len() > 0 {
+            let output: &'static [&'static str] = output.try_into().unwrap();
+            let a = indices.iter().flat_map(|i| if i >= &output.len() { None } else { Some((*i, StrData::<Value>::new(output[*i])))}).collect_vec();
+            Data(a.into())
+        } else {
+            Data(Vec::new().into())
+        }
     }
     fn get(&self) -> &mut [(usize, StrData<Value>)] {
         unsafe{ self.0.as_mut().as_mut_slice() }

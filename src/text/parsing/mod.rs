@@ -37,7 +37,11 @@ impl TextObjData {
                         debg!("Found TextObj {} -> {} {}", k, op1.name(), v);
                         triebuilder.push(k.as_bytes(), v);
                     }
-                    exec.data[*from_nt].to.trie().push((op1, nt, triebuilder.build()));
+                    let mut trie = triebuilder.build();
+                    for k in trie.common_prefix_search("169") {
+                        println!("{:?}", k.len());
+                    }
+                    exec.data[*from_nt].to.trie().push((op1, nt, trie));
                 }
             }
         }
@@ -65,17 +69,13 @@ impl TextObjData {
     }
     pub fn read_to(&self, input: &'static [&'static str]) -> impl Iterator<Item= (&'static Op1Enum, usize, Vec<ConstValue>)> + '_ {
         self.trie().iter().flat_map(|(scan, nt, trie)| {
-            for (k, v) in trie.common_prefix_search_with_values(input[0].as_bytes()) {
-                let mut value = vec![v];
-                if k.len() != input[0].len() { return None; }
+            if trie.exact_match(input[0].as_bytes()) {
+                let mut value = vec![trie.get(input[0].as_bytes()).unwrap().clone()];
                 
                 let r = input[1..].iter().find_map(|inp| {
-                    let values = trie.common_prefix_search_with_values(inp.as_bytes());
-                    let r = values.iter().find_map(|(k, v)| {
-                        if inp.len() == k.len() { Some(v) } else { None }
-                    });
-                    if let Some(v) = r {
-                        value.push(*v);
+                    if trie.exact_match(inp.as_bytes()) {
+                        let v = trie.get(inp.as_bytes()).unwrap();
+                        value.push(v.clone());
                         None
                     } else { Some(()) }
                 });
@@ -119,6 +119,8 @@ mod weekday;
 pub use weekday::*;
 mod time;
 pub use time::*;
+mod float;
+pub use float::*;
 
 impl ParsingOp for Op1Enum {
     fn parse_into(&self, input: &'static str) -> Vec<(&'static str, ConstValue)> {

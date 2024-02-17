@@ -10,6 +10,7 @@ use crate::{
 use derive_more::{DebugCustom, Deref, DerefMut, From, Into, Index, IndexMut};
 use itertools::Itertools;
 use joinery::prelude::*;
+use crate::text::formatting::Op1EnumToFormattingOp;
 
 // use super::{Expr, context::Context, Op1, Op3, Op2};
 
@@ -64,6 +65,7 @@ pub struct NonTerminal {
     pub ty: Type,
     pub rules: Vec<ProdRule>,
     pub start: bool,
+    pub config: Config,
 }
 
 impl NonTerminal {
@@ -96,6 +98,18 @@ impl NonTerminal {
             }
         }
         return None;
+    }
+    
+    pub fn get_all_formatter(&self) -> Vec<(Op1Enum, usize)> {
+        let mut result = Vec::new();
+        for rule in self.rules.iter() {
+            if let ProdRule::Op1(r, nt) = rule {
+                if r.is_formatting_op() {
+                    result.push(((*r).clone(), *nt));
+                }
+            }
+        }
+        result
     }
 }
 #[derive(Clone)]
@@ -142,6 +156,7 @@ impl Cfg {
                 ty: nt.1,
                 rules: nt.2.iter().map(|p| ProdRule::new(p, problem)).collect(), 
                 start: i == 0,
+                config: nt.3.clone(),
             }).collect_vec(),
             config: problem.cfg.config.clone().into(),
         }

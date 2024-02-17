@@ -7,7 +7,7 @@ use futures::{future::Either, select, FutureExt};
 use itertools::Itertools;
 
 use self::{simple::SimpleDeducer, str::StrDeducer};
-
+use derive_more::DebugCustom;
 pub mod str;
 pub mod simple;
 
@@ -15,10 +15,12 @@ pub trait Deducer {
     async fn deduce(&'static self, exec: &'static Executor, value: Value) -> &'static Expr;
 }
 
-
+#[derive(DebugCustom)]
 pub enum DeducerEnum {
+    #[debug(fmt = "{:?}", _0)]
     Str(StrDeducer),
-    Simple(SimpleDeducer)
+    #[debug(fmt = "{:?}", _0)]
+    Simple(SimpleDeducer),
 }
 
 impl DeducerEnum {
@@ -28,10 +30,10 @@ impl DeducerEnum {
                 let mut result = StrDeducer::new(nt);
                 if let Some(ProdRule::Op2(_, n1, n2)) = cfg[nt].get_op2("str.++") {
                     if n1 == n2 && n1 == nt {
-                        result.split_once = min(ctx.len(), max(5, ctx.len() / 10));
+                        result.split_once = (ctx.len() / 3, 5);
                         if let Some(ProdRule::Op3(_, n1, n2, n3)) = cfg[nt].get_op3("ite") {
                             if n3 == n2 && n2 == nt {
-                                result.ite_concat = (max(1, ctx.len() / 30), n1)
+                                result.ite_concat = (ctx.len(), n1)
                             }
                         }
                     }
@@ -41,6 +43,8 @@ impl DeducerEnum {
                         result.join = (min(ctx.len(), max(5, ctx.len() / 10)), n1)
                     }
                 }
+                result.decay_rate = cfg[nt].config.get_usize("str.decay_rate").unwrap_or(300);
+                result.formatter.append(&mut cfg[nt].get_all_formatter());
                 info!("Deduction: {result:?}");
                 Self::Str(result)
             }

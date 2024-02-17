@@ -1,10 +1,11 @@
 
-use derive_more::{From, Into, Deref, DerefMut, Display};
+use derive_more::{From, Into, Deref, DerefMut, Display, DebugCustom};
 use futures::{future::select, FutureExt};
 use futures_core::Future;
 
-
-#[derive(From, Into, Deref, DerefMut, Debug, Display, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(From, Into, Deref, DerefMut, DebugCustom, Display, PartialEq, PartialOrd, Clone, Copy)]
+#[debug(fmt = "{}", _0)]
+#[display(fmt = "{}", _0)]
 pub struct F64(pub f64);
 
 impl Eq for F64 {}
@@ -53,6 +54,10 @@ pub fn select_ret<T>(f1: impl Future<Output=T> + Unpin, f2: impl Future<Output=T
 pub fn select_ret3<T>(f1: impl Future<Output=T> + Unpin, f2: impl Future<Output=T> + Unpin, f3: impl Future<Output=T> + Unpin) -> 
     impl Future<Output = T> {
     select_ret(f1, select_ret(f2, f3))
+}
+pub fn select_ret4<T>(f1: impl Future<Output=T> + Unpin, f2: impl Future<Output=T> + Unpin, f3: impl Future<Output=T> + Unpin, f4: impl Future<Output=T> + Unpin) -> 
+    impl Future<Output = T> {
+    select_ret(f1, select_ret(f2, select_ret(f3, f4)))
 }
 
 pub async fn pending_if<T>(condition: bool, fut: impl Future<Output=T>) -> T {

@@ -35,9 +35,8 @@ impl<T: Clone> EventBus<T> {
     }
     #[inline(always)]
     fn notify(&self) -> Result<(), ()> {
-        let mut vec = self.listeners.borrow_mut();
+        let mut vec = self.listeners.replace(Vec::new());
         vec.iter().try_for_each(|x| { x.notify()?; Ok(())} )?;
-        vec.clear();
         Ok(())
     }
     #[inline(always)]

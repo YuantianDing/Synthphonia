@@ -1,5 +1,7 @@
 // use crate::galloc::alloc_iter;
 
+use std::collections::HashSet;
+
 use crate::galloc::{self, AllocForIter};
 
 use crate::value::ConstValue;
@@ -33,7 +35,7 @@ impl IOExamples {
         let rettype = synthfun.rettype;
         let mut types = args.iter().map(|x| x.1).collect_vec();
         types.push(rettype);
-        let v: Vec<_> = examples
+        let v: HashSet<_> = examples
             .into_inner()
             .map(|x| {
                 let span = x.as_span();

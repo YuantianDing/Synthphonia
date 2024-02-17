@@ -33,6 +33,16 @@ impl DataStatus {
             _ => Ok(None),
         }
     }
+    #[inline(always)]
+    fn try_notify_ref(&self, e: &'static Expr) -> Result<Option<&'static Expr>, ()> {
+        match self {
+            DataStatus::Event(a) if !a.is_ready() => {
+                a.set_value(e)?;
+                Ok(Some(e))
+            }
+            _ => Ok(None),
+        }
+    }
     fn get_event(&self) -> EventBusRc<&'static Expr> {
         match self {
             DataStatus::Event(a) => a.clone(),
@@ -54,6 +64,16 @@ impl Data {
             hash_map::Entry::Occupied(o) => o.get().try_notify(e),
             hash_map::Entry::Vacant(v) => {
                 let e = e.galloc();
+                v.insert(e.into());
+                Ok(Some(e))
+            }
+        }
+    }
+    #[inline(always)]
+    pub fn set_ref(&self, v: Value, e: &'static Expr) -> Result<Option<&'static Expr>, ()> {
+        match unsafe{ self.as_mut().entry(v) } {
+            hash_map::Entry::Occupied(o) => o.get().try_notify_ref(e),
+            hash_map::Entry::Vacant(v) => {
                 v.insert(e.into());
                 Ok(Some(e))
             }
@@ -97,6 +117,19 @@ impl Data {
                 Some(ev)
             }
         }
+    }
+    pub fn at(&self, index: Value) -> Option<&'static Expr> {
+        unsafe{ &self.as_mut().get(&index) }.and_then(|x| {
+            match x {
+                DataStatus::Expr(e) => Some(*e),
+                DataStatus::Event(e) => {
+                    match e.result() {
+                        Poll::Ready(e) => Some(e),
+                        Poll::Pending => None,
+                    }
+                }
+            }
+        })
     }
     pub fn get(&self, index: Value) -> &'static Expr {
         match unsafe{ &self.as_mut()[&index] } {

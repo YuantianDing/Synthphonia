@@ -3,6 +3,7 @@ use std::ops::Not;
 
 use derive_more::DebugCustom;
 use crate::galloc::{AllocForStr, AllocForExactSizeIter, TryAllocForExactSizeIter};
+use crate::utils::F64;
 use crate::{new_op1, new_op2, new_op3, new_op2_opt};
 use itertools::izip;
 
@@ -36,6 +37,35 @@ new_op2_opt!(At, "list.at",
             let i = to_index(s1.len(), *s2);
             Some(s1[i])
         } else { None }
+    }},
+    (Str, Float) -> Str { |(s1, s2)| {
+        if s1.len() > 0 {
+            let i = to_index(s1.len(), **s2 as i64);
+            Some(&*s1[i..=i].galloc_str())
+        } else { None }
+    }},
+    (ListInt, Float) -> Int { |(s1, s2)| {
+        if s1.len() > 0 {
+            let i = to_index(s1.len(), **s2 as i64);
+            Some(s1[i])
+        } else { None }
+    }},
+    (ListStr, Float) -> Str { |(s1, s2)| {
+        if s1.len() > 0 {
+            let i = to_index(s1.len(), **s2 as i64);
+            Some(s1[i])
+        } else { None }
+    }}
+);
+
+new_op2_opt!(StrAt, "str.at",
+    (Str, Int) -> Str { |(s1, s2)| {
+        if s1.len() > 0 {
+            if *s2 >= 0 && (*s2 as usize) < s1.len() {
+                let i = *s2 as usize;
+                Some(&*s1[i..=i].galloc_str())
+            } else { Some("") }
+        } else { None }
     }}
 );
 
@@ -45,6 +75,11 @@ new_op1!(Len, "list.len",
     ListStr -> Int { |s| s.len() as i64 }
 );
 
+new_op1!(FLen, "list.flen", 
+    Str -> Float { |s| F64(s.len() as f64) },
+    ListInt -> Float { |s| F64(s.len() as f64) },
+    ListStr -> Float { |s| F64(s.len() as f64) }
+);
 
 new_op2!(Filter, "list.filter",
     (ListStr, Bool) -> Int { |s| panic!("Could not execuate Filter") }

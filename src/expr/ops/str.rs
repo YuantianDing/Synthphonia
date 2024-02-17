@@ -4,6 +4,7 @@ use std::ops::Not;
 use bumpalo::collections::CollectIn;
 use derive_more::DebugCustom;
 use crate::galloc::{AllocForStr, AllocForExactSizeIter, TryAllocForExactSizeIter, AllocForIter, AllocForCharIter};
+use crate::utils::F64;
 use crate::{new_op1, new_op2, new_op3, new_op3_opt, new_op2_opt};
 use itertools::izip;
 
@@ -19,19 +20,18 @@ new_op2!(Concat, "str.++",
     }}
 );
 
-new_op3!(Replace, "str.replace",
-    (Str, Str, Str) -> Str { |(s1, s2, s3)|
-        &*s1.replacen(*s2, s3, 1).galloc_str()
-    }
-);
+mod replace;
+pub use replace::*;
 
 
 new_op3_opt!(SubStr, "str.substr",
     (Str, Int, Int) -> Str { |(s1, s2, s3)| {
         if s1.len() == 0 { return None; }
-        let i = to_index(s1.len(), *s2);
-        let j = to_index(s1.len(), *s3);
-        if i <= j { Some(&*s1[i..j].galloc_str()) } else { None }
+        if *s2 >= 0 && (*s2 as usize) < s1.len() && *s3 >= 0 && (*s3 as usize) < s1.len() {
+            let i = *s2 as usize;
+            let j = std::cmp::min(i + *s3 as usize, s1.len());
+            Some(&*s1[i..j].galloc_str())
+        } else { Some("") }
     }}
 );
 
@@ -41,6 +41,12 @@ new_op2_opt!(Head, "str.head",
         let i = to_index(s1.len(), *s2);
         if i == 0 || i == s1.len() { return None; }
         Some(&*s1[0..i].galloc_str())
+    }},
+    (Str, Float) -> Str { |(s1, s2)| {
+        if s1.len() <= 1 { return None; }
+        let i = to_index(s1.len(), **s2 as i64);
+        if i == 0 || i == s1.len() { return None; }
+        Some(&*s1[0..i].galloc_str())
     }}
 );
 
@@ -48,6 +54,12 @@ new_op2_opt!(Tail, "str.tail",
     (Str, Int) -> Str { |(s1, s2)| {
         if s1.len() <= 1 { return None; }
         let i = to_index(s1.len(), *s2);
+        if i == 0 || i == s1.len() { return None; }
+        Some(&*s1[i..].galloc_str())
+    }},
+    (Str, Float) -> Str { |(s1, s2)| {
+        if s1.len() <= 1 { return None; }
+        let i = to_index(s1.len(), **s2 as i64);
         if i == 0 || i == s1.len() { return None; }
         Some(&*s1[i..].galloc_str())
     }}
@@ -83,8 +95,10 @@ pub fn str_index_of_b(s1: &str, s2: &str, s3: usize) -> i64 {
 
 new_op3!(IndexOf, "str.indexof",
     (Str, Str, Int) -> Int { |(s1, s2, s3)| {
-        let (r, s3) = if *s3 < 0 { (true, s3.not() as usize) } else {(false, *s3 as usize)};
-        if r { str_index_of_b(s1, s2, s3) } else {str_index_of_f(s1, s2, s3) }
+        if *s3 < 0 || *s3 as usize > s1.len() { return -1i64; }
+        if let Some(r) = s1[*s3 as usize..].find(s2) {
+            r as i64
+        } else { -1i64 }
     }}
 );
 
@@ -120,6 +134,12 @@ new_op2!(Join, "str.join",
 new_op2!(Count, "str.count",
     (Str, Str) -> Int { |(s1, s2)| {
         s1.matches(s2).count() as i64
+    }}
+);
+
+new_op2!(FCount, "str.fcount",
+    (Str, Str) -> Float { |(s1, s2)| {
+        F64(s1.matches(s2).count() as f64)
     }}
 );
 

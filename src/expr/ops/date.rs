@@ -7,6 +7,7 @@ use std::ops::Not;
 use bumpalo::collections::CollectIn;
 use derive_more::DebugCustom;
 use crate::galloc::{AllocForStr, AllocForExactSizeIter, TryAllocForExactSizeIter, AllocForIter, AllocForCharIter};
+use crate::new_op2_opt;
 use crate::{new_op1, new_op2, impl_op3, impl_op3_opt, impl_op2_opt, new_op1_opt};
 use itertools::izip;
 
@@ -17,23 +18,6 @@ use super::{Op1, Op3, Op2};
 
 
 
-new_op1_opt!(FormatDate, "date.fmt",
-    Int -> Str { |s1| {
-        todo!()
-    }}
-);
-
-new_op1_opt!(FormatMonth, "date.month.fmt",
-    Int -> Str { |s1| {
-        todo!()
-    }}
-);
-
-new_op1_opt!(FormatWeekday, "date.weekday.fmt",
-    Int -> Str { |s1| {
-        todo!()
-    }}
-);
 
 new_op1_opt!(AsMonth, "date.month",
     Int -> Int { |s1| {
@@ -75,21 +59,22 @@ new_op1_opt!(AsWeekDay, "date.weekday",
     }}
 );
 
-
-new_op1_opt!(FormatTime, "time.fmt",
-    Str -> Int { |s1| {
-        todo!()
-    }}
-);
-
-new_op2!(TimeFloor, "time.floor",
+new_op2_opt!(TimeFloor, "time.floor",
     (Int, Int) -> Int { |(s1, s2)| {
-        s1.div_floor(*s2) * *s2
+        if *s2 != 0 {
+            Some(s1.div_floor(*s2) * *s2)
+        } else { None }
     }}
 );
 
 new_op2!(TimeAdd, "time.+",
     (Int, Int) -> Int { |(s1, s2)| {
         (s1 + s2) % (60 * 60 * 60)
+    }}
+);
+
+new_op2!(TimeMul, "time.*",
+    (Int, Int) -> Int { |(s1, s2)| {
+        (s1 * s2) % (60 * 60 * 60)
     }}
 );

@@ -24,6 +24,26 @@ macro_rules! impl_basic {
 }
 
 #[macro_export]
+macro_rules! impl_name {
+    ($s:ident, $name:expr) => {
+        impl $s {
+            pub fn name() -> &'static str {$name}
+        }
+        impl std::fmt::Display for $s {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                Self::name().fmt(f)
+            }
+        }
+        impl Default for $s {
+            fn default() -> Self {
+                Self::from_config(&Default::default())
+            }
+        }
+    };
+}
+
+
+#[macro_export]
 macro_rules! impl_op1 {
     ($s:ident, $name:expr, $($t1:ident -> $rt:ident { $f:expr }),*) => {
         impl crate::expr::ops::Op1 for $s {

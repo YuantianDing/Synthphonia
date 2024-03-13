@@ -1,6 +1,6 @@
 use enum_dispatch::enum_dispatch;
 
-use crate::value::{ConstValue, Value};
+use crate::{debg2, parser::problem::FunSig, value::{ConstValue, Value}};
 
 
 pub mod context;
@@ -26,13 +26,15 @@ pub enum Expr {
 
 impl Expr {
     pub fn eval(&self, ctx: &Context) -> Value {
-        match self {
+        let result = match self {
             Expr::Const(c) => c.value(ctx.len()),
             Expr::Var(index) => ctx[*index],
             Expr::Op1(op1, a1) => op1.eval(a1.eval(ctx)),
             Expr::Op2(op2, a1, a2) => op2.eval(a1.eval(ctx), a2.eval(ctx)),
             Expr::Op3(op3, a1, a2, a3) => op3.eval(a1.eval(ctx), a2.eval(ctx), a3.eval(ctx)),
-        }
+        };
+        debg2!("{:?} => {:?}", self, result);
+        result
     }
     pub fn cost(&self) -> usize {
         match self {
@@ -53,6 +55,15 @@ impl Expr {
                 Expr::Op2(_, e1, e2) => e1.contains(other) || e2.contains(other),
                 Expr::Op3(_, e1, e2, e3) => e1.contains(other) || e2.contains(other) || e3.contains(other),
             }
+        }
+    }
+    pub fn format(&self, sig: &FunSig) -> String {
+        match self {
+            Expr::Const(c) => format!("{:?}", c),
+            Expr::Var(index) => sig.args[*index as usize].0.clone(),
+            Expr::Op1(op1, a1) => format!("({} {})", op1, a1.format(sig)),
+            Expr::Op2(op2, a1, a2) => format!("({} {} {})", op2, a1.format(sig), a2.format(sig)),
+            Expr::Op3(op3, a1, a2, a3) => format!("({} {} {} {})", op3, a1.format(sig), a2.format(sig), a3.format(sig)),
         }
     }
 }
@@ -80,6 +91,7 @@ macro_rules! expr {
         use $crate::galloc::AllocForAny;
         use $crate::expr::ops::str::*;
         use $crate::expr::ops::*;
+        use $crate::expr::ops::float::*;
         $crate::expr_no_use!($($inner)*) 
     }};
 }

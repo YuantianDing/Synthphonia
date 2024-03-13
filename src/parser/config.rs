@@ -40,6 +40,9 @@ impl Config {
     pub fn get_bool(&self, name: &str) -> Option<bool> {
         self.0.get(name).and_then(|x| x.as_bool())
     }
+    pub fn merge(&mut self, other: Self) {
+        self.0.extend(other.0);
+    }
 }
 
 impl std::fmt::Debug for Config {

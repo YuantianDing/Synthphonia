@@ -6,13 +6,41 @@ use crate::{debg, expr::{cfg::{Cfg, NonTerminal, ProdRule}, context::Context, Ex
 use futures::{future::Either, select, FutureExt};
 use itertools::Itertools;
 
-use self::{simple::SimpleDeducer, str::StrDeducer};
+use self::{simple::SimpleDeducer, str::{StrDeducer}};
 use derive_more::DebugCustom;
 pub mod str;
 pub mod simple;
 
+use derive_more::Constructor;
+#[derive(Constructor, Clone, Debug, Copy)]
+pub struct Problem {
+    pub nt: usize,
+    pub value: Value,
+    pub used_cost: usize
+}
+
+impl Problem {
+    pub fn with_value(mut self, v: Value) -> Problem {
+        self.value = v;
+        self
+    }
+    pub fn with_nt(mut self, nt: usize, v: Value) -> Problem {
+        self.nt = nt;
+        self.value = v;
+        self
+    }
+    pub fn root(nt: usize, value: Value) -> Problem {
+        Problem { nt, value, used_cost: 0 }
+    }
+    pub fn inccost(mut self) -> Problem {
+        self.used_cost += 1;
+        self
+    }
+
+}
+
 pub trait Deducer {
-    async fn deduce(&'static self, exec: &'static Executor, value: Value) -> &'static Expr;
+    async fn deduce(&'static self, exec: &'static Executor, value: Problem) -> &'static Expr;
 }
 
 #[derive(DebugCustom)]
@@ -43,7 +71,7 @@ impl DeducerEnum {
                         result.join = (min(ctx.len(), max(5, ctx.len() / 10)), n1)
                     }
                 }
-                result.decay_rate = cfg[nt].config.get_usize("str.decay_rate").unwrap_or(300);
+                result.decay_rate = cfg[nt].config.get_usize("str.decay_rate").unwrap_or(900);
                 result.formatter.append(&mut cfg[nt].get_all_formatter());
                 info!("Deduction: {result:?}");
                 Self::Str(result)
@@ -55,10 +83,10 @@ impl DeducerEnum {
 }
 
 impl Deducer for DeducerEnum {
-    async fn deduce(&'static self, exec: &'static Executor, value: Value) -> &'static Expr {
+    async fn deduce(&'static self, exec: &'static Executor, problem: Problem) -> &'static Expr {
         let result = match self {
-            DeducerEnum::Str(a) => a.deduce(exec, value).await,
-            DeducerEnum::Simple(a) => a.deduce(exec, value).await,
+            DeducerEnum::Str(a) => a.deduce(exec, problem).await,
+            DeducerEnum::Simple(a) => a.deduce(exec, problem).await,
         };
         debg!("TASK#{} finished", currect_task_id());
         result

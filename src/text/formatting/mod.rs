@@ -5,9 +5,10 @@ trait FormattingOp where Self: Sized {
     fn format(&self, input: &'static str) -> Option<(Self, ConstValue, &'static str)>;
     fn union(self, other: Self) -> Option<Self>;
     fn bad_value() -> ConstValue;
-    fn format_all(&self, input: &'static [&'static str]) -> Option<(Self, Value, Value)> {
+    fn format_all(&self, input: &'static [&'static str]) -> Option<(Self, Value, Value, Value)> {
         let mut a = Vec::with_capacity(input.len());
         let mut b = galloc::new_bvec(input.len());
+        let mut cond = galloc::new_bvec(input.len());
         let mut newop: Option<Self> = None;
         for i in input {
             if let Some((op, x, y)) = self.format(i) {
@@ -17,13 +18,15 @@ trait FormattingOp where Self: Sized {
                 } else { newop = Some(op); }
                 a.push(x);
                 b.push(y);
+                cond.push(true);
             } else {
                 a.push(Self::bad_value());
                 b.push(i);
+                cond.push(false);
             }
         }
         if let Some(no) = newop {
-            Some((no, consts_to_value(a), Value::Str(b.into_bump_slice())))
+            Some((no, consts_to_value(a), Value::Str(b.into_bump_slice()), cond.into_bump_slice().into()))
         } else { None }
     }
 }
@@ -61,9 +64,9 @@ impl Op1Enum {
         crate::for_all_formatting_op!();
         false
     }
-    fn format_all(&self, input: &'static [&'static str]) -> Option<(Op1Enum, Value, Value)> {
+    fn format_all(&self, input: &'static [&'static str]) -> Option<(Op1Enum, Value, Value, Value)> {
         macro_rules! _do {($op:ident) => {
-            if let Self::$op(op) = self { return op.format_all(input).map(|(a,b,c)| (a.into(), b, c)); }
+            if let Self::$op(op) = self { return op.format_all(input).map(|(a, b, c, d)| (a.into(), b, c, d)); }
         };}
         crate::for_all_formatting_op!();
         panic!();

@@ -5,10 +5,10 @@
       (Start String (ntString))
       (ntString String (" " name
             (str.++ ntString ntString) 
-            (str.head ntString ntFloat #cost:4)
-            (str.tail ntString ntFloat #cost:4)
+            (str.head ntString ntInt #cost:4)
+            (str.tail ntString ntInt #cost:4)
 
-            (list.at ntList ntFloat) 
+            (list.at ntList ntInt) 
             (str.join ntList ntString)
 
             (float.fmt ntFloat)
@@ -22,24 +22,24 @@
             (str.retainL ntString #cost:4)
             (str.retainN ntString #cost:4)
             (str.retainLN ntString #cost:4)
-            (str.uppercase ntString #cost:4)
-            (str.lowercase ntString #cost:4)
+            (str.uppercase ntString #cost:3)
+            (str.lowercase ntString #cost:3)
 
             (ite ntBool ntString ntString)
-      ) )
-      (ntInt Int (-1 1 2 4
+      ))
+      (ntInt Int (-1 1 2 3 4
             (+ ntInt ntInt)
             (int.neg ntInt)
-
+            (str.count ntString ntString)
+            (list.len ntString)
+            (str.to.int ntString #cost:2)
             (date.month ntDate)
             (date.day ntDate)
             (date.year ntDate)
       ))
       (ntFloat Float (-1.0 0.0 1.0 2.0 5.0
-            (list.flen ntString)
-            (str.fcount ntString ntString)
-            (str.to.float ntString)
-            (float.+ ntFloat ntFloat)
+            (str.to.float ntString #cost:2)
+            (float.+ ntFloat ntFloat #cost:2)
             (float.neg ntFloat)
             (float.shl10 ntFloat ntInt)
             (float.floor ntFloat ntFloat #cost:2)
@@ -55,12 +55,12 @@
             (time.* ntTime ntInt)
       ))
       (ntBool Bool (
-            (float.is0 ntFloat #cost:2)
-            (float.is+ ntFloat)
-            (float.not- ntFloat)
+            (int.is0 ntInt #cost:2)
+            (int.is+ ntInt)
+            (int.isN ntInt)
       ))
       (ntList (List String) (
-            (str.split ntString ntString)
+            (str.split ntString ntString )
       ))
       #data.listsubseq.sample:0
 ))

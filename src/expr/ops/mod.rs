@@ -130,6 +130,8 @@ impl Op1Enum {
         crate::for_all_op1!();
         match name {
             "str.len" => Len::from_config(config).into(),
+            "str.from_int" => ToStr::from_config(config).into(),
+            "str.to_int" => ToInt::from_config(config).into(),
             _ => panic!("Unknown Operator {}", name),
         }
     }

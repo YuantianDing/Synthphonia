@@ -2,8 +2,7 @@ use itertools::Itertools;
 use pest::iterators::Pair;
 
 use crate::{
-    galloc::AllocForStr,
-    value::{ConstValue, Type},
+    galloc::AllocForStr, utils::TryRetain, value::{ConstValue, Type}
 };
 
 use super::{problem::{new_custom_error_span, Error, Rule}, config::Config};
@@ -51,13 +50,13 @@ impl ProdRule {
     }
     pub fn parse(pair: Pair<'_, Rule>) -> Result<Self, Error> {
         let mut vec = pair.into_inner().into_iter().collect_vec();
-        let config = vec.last().unwrap().clone();
-        let config = if config.as_rule() == Rule::config {
-            vec.pop();
-            Config::parse(config.clone())?
-        } else {
-            Config::new()
-        };
+        let mut config = Config::new();
+        vec.try_retain(|x| {
+            if x.as_rule() == Rule::config {
+                config.merge(Config::parse(x.clone())?);
+                Ok(false)
+            } else { Ok(true) }
+        })?;
         if vec.len() == 1 {
             let [value]: [_; 1] = vec.try_into().unwrap();
             match value.as_rule() {

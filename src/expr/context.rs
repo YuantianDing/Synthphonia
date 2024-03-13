@@ -1,6 +1,6 @@
 
 use derive_more::{DebugCustom, Constructor};
-use crate::{value::Value, parser::problem::PBEProblem};
+use crate::{parser::{ioexamples::IOExamples, problem::PBEProblem}, value::Value};
 
 #[derive(DebugCustom, Constructor, Clone)]
 #[debug(fmt = "(n: {:?}, p: {:?})", n, p)]
@@ -38,12 +38,12 @@ impl std::ops::Index<i64> for Context {
 
 
 impl Context {
-    pub fn from_problem(problem: &PBEProblem) -> Self {
+    pub fn from_examples(examples: &IOExamples) -> Self {
         Self {
-            len: problem.examples.output.len(),
-            p: problem.examples.inputs.clone(),
+            len: examples.output.len(),
+            p: examples.inputs.clone(),
             n: Vec::new(),
-            output: problem.examples.output
+            output: examples.output
         }
     }
 }

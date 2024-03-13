@@ -16,7 +16,7 @@ logic = {"(" ~ "set-logic" ~ symbol ~ ")"}
 typ = { symbol | ("(" ~ "List" ~ symbol ~ ")") }
 arg = { "(" ~ symbol ~ typ ~ ")" }
 arglist = { "(" ~ arg* ~ ")" }
-prod = { (value | symbol | "(" ~ symbol+ ~ config? ~ ")") }
+prod = { (value | symbol | "(" ~ (symbol | config)+ ~ ")") }
 prods = { "(" ~ prod+ ~ ")" ? }
 nt = { "(" ~ symbol ~ typ ~ prods ~ config? ~ ")" }
 cfg = { "(" ~ nt+ ~ config? ~ ")" }
@@ -29,6 +29,12 @@ examples = { example* }
 check_synth = { "(check-synth)" }
 file = { start_comment ~ logic ~ synthproblem ~ examples ~ check_synth ~ WHITESPACE* }
 
+expr = {  (value | symbol | "(" ~ symbol ~ (expr | config)* ~ ")") }
+definefun = { "(" ~ "define-fun" ~ symbol ~ arglist ~ typ ~ expr ~ ")" }
+assertion = { "(" ~ "assert" ~ "(" ~ "=" ~ "(" ~ symbol ~ value* ~ ")" ~ value ~ ")" ~ ")"}
+assertions = { assertion* }
+check_sat = { "(check-sat)" }
+smtfile = { start_comment ~ logic ~ definefun ~ assertions ~ check_sat ~ WHITESPACE* }
 
 newline        = _{ "\n" | "\r\n" }
 WHITESPACE     = _{ " " | "\t" | newline | COMMENT }

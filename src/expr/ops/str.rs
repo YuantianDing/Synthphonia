@@ -27,7 +27,7 @@ pub use replace::*;
 new_op3_opt!(SubStr, "str.substr",
     (Str, Int, Int) -> Str { |(s1, s2, s3)| {
         if s1.len() == 0 { return None; }
-        if *s2 >= 0 && (*s2 as usize) < s1.len() && *s3 >= 0 && (*s3 as usize) < s1.len() {
+        if *s2 >= 0 && (*s2 as usize) < s1.len() && *s3 >= 0 {
             let i = *s2 as usize;
             let j = std::cmp::min(i + *s3 as usize, s1.len());
             Some(&*s1[i..j].galloc_str())
@@ -97,19 +97,19 @@ new_op3!(IndexOf, "str.indexof",
     (Str, Str, Int) -> Int { |(s1, s2, s3)| {
         if *s3 < 0 || *s3 as usize > s1.len() { return -1i64; }
         if let Some(r) = s1[*s3 as usize..].find(s2) {
-            r as i64
+            *s3 + r as i64
         } else { -1i64 }
     }}
 );
 
 new_op2!(PrefixOf, "str.prefixof",
     (Str, Str) -> Bool { |(s1, s2)| {
-        s1.starts_with(s2)
+        s2.starts_with(s1)
     }}
 );
 new_op2!(SuffixOf, "str.suffixof",
     (Str, Str) -> Bool { |(s1, s2)| {
-        s1.ends_with(s2)
+        s2.ends_with(s1)
     }}
 );
 new_op2!(Contains, "str.contains",
@@ -139,7 +139,7 @@ new_op2!(Count, "str.count",
 
 new_op2!(FCount, "str.fcount",
     (Str, Str) -> Float { |(s1, s2)| {
-        F64(s1.matches(s2).count() as f64)
+        F64::from_usize(s1.matches(s2).count())
     }}
 );
 

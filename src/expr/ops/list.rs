@@ -76,9 +76,9 @@ new_op1!(Len, "list.len",
 );
 
 new_op1!(FLen, "list.flen", 
-    Str -> Float { |s| F64(s.len() as f64) },
-    ListInt -> Float { |s| F64(s.len() as f64) },
-    ListStr -> Float { |s| F64(s.len() as f64) }
+    Str -> Float { |s| F64::from_usize(s.len()) },
+    ListInt -> Float { |s| F64::from_usize(s.len()) },
+    ListStr -> Float { |s| F64::from_usize(s.len()) }
 );
 
 new_op2!(Filter, "list.filter",

@@ -32,7 +32,7 @@ impl ParsingOp for ParseFloat {
         for m in iter {
             let a = m.get(0).unwrap().as_str();
             if let Ok(i) = a.parse::<f64>() {
-                result.push((a, F64(i).into()));
+                result.push((a, F64::new(i).into()));
             }
         }
         result

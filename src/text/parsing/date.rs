@@ -15,11 +15,27 @@ impl crate::forward::enumeration::Enumerator1 for ParseDate {
     fn enumerate(&self, this: &'static ops::Op1Enum, exec: &'static crate::forward::executor::Executor, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
 }
 
-impl_op1_opt!(ParseDate, "date.parse",
-    Str -> Int { |s1| {
-        todo!()
-    }}
-);
+impl crate::expr::ops::Op1 for ParseDate {
+    fn cost(&self) -> usize {
+        self.0
+    }
+    fn try_eval(&self, a1: crate::value::Value) -> Option<crate::value::Value> {
+        match a1 {
+            crate::value::Value::Str(s1) => {
+                let a = s1
+                    .iter()
+                    .map(|s1| {
+                        let mut res = self.parse_into(*s1);
+                        res.sort_by_key(|(a,b)| -(a.len() as isize));
+                        res.first().map(|(s, c)| c.as_i64().unwrap()).unwrap_or(0 as i64)
+                    }).galloc_scollect();
+                Some(a.into())
+            }
+            _ => None,
+        }
+    }
+}
+
 
 impl ParsingOp for ParseDate {
 
@@ -64,40 +80,40 @@ mod tests {
     #[test]
     fn test1() {
         let scanner = ParseDate(1);
-        println!("{:?}", scanner.parse_into("Jan"));
-        println!("{:?}", scanner.parse_into("Jan 1st, 2034"));
-        println!("{:?}", scanner.parse_into("03042241"));
-        println!("{:?}", scanner.parse_into("10/6/2143"));
-        println!("{:?}", scanner.parse_into("06-Oct-2143"));
-        println!("{:?}", scanner.parse_into("Mar 30 2002"));
-        println!("{:?}", scanner.parse_into("01311846"));
-        println!("{:?}", scanner.parse_into("22 Apr 1953"));
-        println!("{:?}", scanner.parse_into("03302241"));
-        println!("{:?}", scanner.parse_into("02-Aug-2160"));
-        println!("{:?}", scanner.parse_into("23 May 1984"));
+        println!("{:?}", scanner.parse_into("Jan"))           ;
+        println!("{:?}", scanner.parse_into("Jan 1st, 2034")) ;
+        println!("{:?}", scanner.parse_into("03042241"))      ;
+        println!("{:?}", scanner.parse_into("10/6/2143"))     ;
+        println!("{:?}", scanner.parse_into("06-Oct-2143"))   ;
+        println!("{:?}", scanner.parse_into("Mar 30 2002"))   ;
+        println!("{:?}", scanner.parse_into("01311846"))      ;
+        println!("{:?}", scanner.parse_into("22 Apr 1953"))   ;
+        println!("{:?}", scanner.parse_into("03302241"))      ;
+        println!("{:?}", scanner.parse_into("02-Aug-2160"))   ;
+        println!("{:?}", scanner.parse_into("23 May 1984"))   ;
         println!("{:?}", scanner.parse_into("15 August 1740"));
-        println!("{:?}", scanner.parse_into("Jul 08 2237"));
-        println!("{:?}", scanner.parse_into("3 Nov 1904"));
-        println!("{:?}", scanner.parse_into("5 April 2088"));
-        println!("{:?}", scanner.parse_into("05302131"));
-        println!("{:?}", scanner.parse_into("May 25 1817"));
-        println!("{:?}", scanner.parse_into("31 May 1963"));
-        println!("{:?}", scanner.parse_into("24-Nov-2098"));
-        println!("{:?}", scanner.parse_into("22 Oct 1815"));
-        println!("{:?}", scanner.parse_into("26 May 2155"));
-        println!("{:?}", scanner.parse_into("26-Mar-1816"));
-        println!("{:?}", scanner.parse_into("26 Apr 2090"));
-        println!("{:?}", scanner.parse_into("14-Aug-2089"));
-        println!("{:?}", scanner.parse_into("Apr 20 1957"));
-        println!("{:?}", scanner.parse_into("11 Sep 1952"));
-        println!("{:?}", scanner.parse_into("03-Nov-2114"));
-        println!("{:?}", scanner.parse_into("21 June 2059"));
-        println!("{:?}", scanner.parse_into("21-Jan-1818"));
-        println!("{:?}", scanner.parse_into("16 Sep 2075"));
-        println!("{:?}", scanner.parse_into("Oct 2 2204"));
-        println!("{:?}", scanner.parse_into("02 Sep 1747"));
-        println!("{:?}", scanner.parse_into("29 Jan 2218"));
-        println!("{:?}", scanner.parse_into("03 Apr 2008"));
+        println!("{:?}", scanner.parse_into("Jul 08 2237"))   ;
+        println!("{:?}", scanner.parse_into("3 Nov 1904"))    ;
+        println!("{:?}", scanner.parse_into("5 April 2088"))  ;
+        println!("{:?}", scanner.parse_into("05302131"))      ;
+        println!("{:?}", scanner.parse_into("May 25 1817"))   ;
+        println!("{:?}", scanner.parse_into("31 May 1963"))   ;
+        println!("{:?}", scanner.parse_into("24-Nov-2098"))   ;
+        println!("{:?}", scanner.parse_into("22 Oct 1815"))   ;
+        println!("{:?}", scanner.parse_into("26 May 2155"))   ;
+        println!("{:?}", scanner.parse_into("26-Mar-1816"))   ;
+        println!("{:?}", scanner.parse_into("26 Apr 2090"))   ;
+        println!("{:?}", scanner.parse_into("14-Aug-2089"))   ;
+        println!("{:?}", scanner.parse_into("Apr 20 1957"))   ;
+        println!("{:?}", scanner.parse_into("11 Sep 1952"))   ;
+        println!("{:?}", scanner.parse_into("03-Nov-2114"))   ;
+        println!("{:?}", scanner.parse_into("21 June 2059"))  ;
+        println!("{:?}", scanner.parse_into("21-Jan-1818"))   ;
+        println!("{:?}", scanner.parse_into("16 Sep 2075"))   ;
+        println!("{:?}", scanner.parse_into("Oct 2 2204"))    ;
+        println!("{:?}", scanner.parse_into("02 Sep 1747"))   ;
+        println!("{:?}", scanner.parse_into("29 Jan 2218"))   ;
+        println!("{:?}", scanner.parse_into("03 Apr 2008"))   ;
     }
 }
 

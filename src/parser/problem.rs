@@ -97,11 +97,23 @@ impl Cfg {
     // }
 }
 
-#[derive(Debug, Clone)]
-pub struct SynthFun {
+#[derive(Debug, Display, Clone)]
+#[display(fmt = "{} ({}) {:?}", "self.name", r#"self.args.iter().map(|(s, t)| format!("({} {:?})", s, t)).collect_vec().join(" ")"#, "self.rettype")]
+pub struct FunSig {
     pub name: String,
     pub args: Vec<(String, Type)>,
     pub rettype: Type,
+}
+
+impl FunSig {
+    pub fn index(&self, argname: &str) -> Option<usize> {
+        self.args.iter().position(|x| x.0 == argname)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SynthFun {
+    pub sig: FunSig,
     pub cfg: Cfg,
     pub subproblem: bool
 }
@@ -119,13 +131,13 @@ impl SynthFun {
             .try_collect()?;
         let rettype = Type::parse(typ)?;
         let cfg = Cfg::parse(cfg)?;
-        Ok(Self{name: name.as_str().into(), args, rettype, cfg, subproblem})
+        Ok(Self{sig: FunSig{name: name.as_str().into(), args, rettype}, cfg, subproblem})
     }
     pub fn lookup_nt(&self, nt: &str) -> Option<usize> {
         self.cfg.inner.iter().find_position(|x| x.0.as_str() == nt).map(|x| x.0)
     }
     pub fn lookup_arg(&self, arg: &str) -> Option<usize> {
-        self.args.iter().find_position(|x| x.0.as_str() == arg).map(|x| x.0)
+        self.sig.args.iter().find_position(|x| x.0.as_str() == arg).map(|x| x.0)
     }
 }
 
@@ -169,7 +181,7 @@ impl PBEProblem {
         let synthfuns: Vec<_> = synthproblem.into_inner().enumerate().map(|(i, pair)| SynthFun::parse(pair)).collect::<Result<Vec<_>, _>>()?;
         let vec = synthfuns.iter().enumerate().filter(|x| !x.1.subproblem).map(|i|i.0).collect_vec();
         let problem_index = if let [a] = vec.as_slice() {*a} else { panic!("There should be only one synth-fun."); };
-        let examples = IOExamples::parse(examples, &synthfuns[problem_index])?;
+        let examples = IOExamples::parse(examples, &synthfuns[problem_index].sig, true)?;
 
         Ok(PBEProblem {
             logic: logic.as_str().to_owned(),

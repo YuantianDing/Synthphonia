@@ -3,7 +3,7 @@ use derive_more::{ From, Into, DebugCustom, Deref };
 use pin_cell::{PinCell, PinMut};
 use pin_weak::rc::PinWeak;
 
-use crate::{forward::future::taskrc::{TaskWeak, TaskRc}, debg};
+use crate::{debg, debg2, forward::future::taskrc::{TaskRc, TaskWeak}, warn};
 
 use super::taskrc::{self, TaskTRc};
 
@@ -111,7 +111,10 @@ impl <T: Future + 'static> Task for TaskT<T> {
     }
     fn poll_task(self: Pin<Rc<Self>>) -> bool {
         if self.is_ready() { return true; }
-        debug_assert!(currect_task_id_opt() < self.id);
+        if currect_task_id_opt() >= self.id {
+            debg2!("TASK#{} attempted to poll TASK#{}", currect_task_id_opt(), self.id);
+            return false;
+        }
         
         let fut = unsafe { Pin::new_unchecked(&self.fut) };
         if let Ok(mut fut) = fut.try_borrow_mut() {

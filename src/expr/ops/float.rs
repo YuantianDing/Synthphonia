@@ -14,25 +14,25 @@ use super::{ Op1, Op2, Op3};
 
 new_op2!(FAdd, "float.+",
     (Float, Float) -> Float { |(&s1, &s2)| {
-        F64(*s1 + *s2)
+        F64::new(*s1 + *s2)
     }}
 );
 new_op2!(FSub, "float.-",
     (Float, Float) -> Float { |(&s1, &s2)| {
-        F64(*s1 - *s2)
+        F64::new(*s1 - *s2)
     }}
 );
 
 
 new_op1!(FNeg, "float.neg",
     Float -> Float { |&s1| {
-        F64(-*s1)
+        F64::new(-*s1)
     }}
 );
 
 new_op1!(FAbs, "float.abs",
     Float -> Float { |&s1| {
-        F64(s1.abs())
+        F64::new(s1.abs())
     }}
 );
 
@@ -54,38 +54,38 @@ new_op1!(FIsZero, "float.is0",
 
 new_op1!(FExp10, "float.exp10",
     Int -> Float { |s1| {
-        F64(10.0f64.powi(*s1 as i32))
+        F64::new(10.0f64.powi(*s1 as i32))
     }}
 );
 
 new_op2!(FShl10, "float.shl10",
     (Float, Int) -> Float { |(s1, s2)| {
-        F64(**s1 * 10.0f64.powi(*s2 as i32))
+        F64::new(**s1 * 10.0f64.powi(*s2 as i32))
     }}
 );
 
 new_op2_opt!(FFloor, "float.floor",
     (Float, Float) -> Float { |(&s1, &s2)| {
         if *s2 == 0.0 { return None }
-        Some(F64((*s1 / *s2).floor() * *s2))
+        Some(F64::new((*s1 / *s2).floor() * *s2))
     }}
 );
 new_op2_opt!(FRound, "float.round",
     (Float, Float) -> Float { |(&s1, &s2)| {
         if *s2 == 0.0 { return None }
-        Some(F64((*s1 / *s2).round() * *s2))
+        Some(F64::new((*s1 / *s2).round() * *s2))
     }}
 );
 new_op2_opt!(FCeil, "float.ceil",
     (Float, Float) -> Float { |(&s1, &s2)| {
         if *s2 == 0.0 { return None }
-        Some(F64((*s1 / *s2).ceil() * *s2))
+        Some(F64::new((*s1 / *s2).ceil() * *s2))
     }}
 );
 
 new_op1!(IntToFloat, "int.to.float",
     Int -> Float { |&s1| {
-        F64(s1 as f64)
+        F64::new(s1 as f64)
     }}
 );
 
@@ -97,7 +97,7 @@ new_op1!(FloatToInt, "float.to.int",
 
 new_op1_opt!(StrToFloat, "str.to.float",
     Str -> Float { |&s1| {
-        s1.parse::<f64>().ok().map(|x| F64(x))
+        s1.parse::<f64>().ok().map(|x| F64::new(x))
     }}
 );
 

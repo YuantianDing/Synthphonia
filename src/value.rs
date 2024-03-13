@@ -17,13 +17,13 @@ pub enum Type {
     Int,
     #[debug(fmt = "Bool")]
     Bool,
-    #[debug(fmt = "Str")]
+    #[debug(fmt = "String")]
     Str,
     #[debug(fmt = "Float")]
     Float,
     #[debug(fmt = "(List Int)")]
     ListInt,
-    #[debug(fmt = "(List Str)")]
+    #[debug(fmt = "(List String)")]
     ListStr,
 }
 
@@ -126,6 +126,39 @@ impl Value {
     }
     pub fn to_str(self) -> &'static [&'static str] {
         self.try_into().unwrap()
+    }
+    pub fn to_bool(self) -> &'static [bool] {
+        self.try_into().unwrap()
+    }
+    pub fn is_all_true(&self) -> bool {
+        if let Self::Bool(b) = self {
+            b.iter().all(|x| *x == true)
+        } else { false }
+    }
+    pub fn is_all_false(&self) -> bool {
+        if let Self::Bool(b) = self {
+            b.iter().all(|x| *x == false)
+        } else { false }
+    }
+    pub fn is_all_empty(&self) -> bool {
+        if let Self::Str(b) = self {
+            b.iter().all(|x| *x == "")
+        } else { false }
+    }
+    pub fn bool_not(self) -> Value {
+        let this = self.to_bool();
+        this.into_iter().map(|x| !x).galloc_scollect().into()
+    }
+    pub fn eq_count(&self, other: &Self) -> usize {
+        match (self, other) {
+            (Self::Int(a1), Self::Int(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
+            (Self::Str(a1), Self::Str(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
+            (Self::Float(a1), Self::Float(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
+            (Self::Bool(a1), Self::Bool(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
+            (Self::ListInt(a1), Self::ListInt(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
+            (Self::ListStr(a1), Self::ListStr(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
+            _ => 0,
+        }
     }
 }
 

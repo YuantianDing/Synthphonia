@@ -21,7 +21,6 @@ impl Ite {
     pub fn name() ->  &'static str {
         "ite"
     }
-
 }
 impl std::fmt::Display for Ite {
     fn fmt(&self,f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { Self::name().fmt(f) }

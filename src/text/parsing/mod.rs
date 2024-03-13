@@ -38,9 +38,6 @@ impl TextObjData {
                         triebuilder.push(k.as_bytes(), v);
                     }
                     let mut trie = triebuilder.build();
-                    for k in trie.common_prefix_search("169") {
-                        println!("{:?}", k.len());
-                    }
                     exec.data[*from_nt].to.trie().push((op1, nt, trie));
                 }
             }

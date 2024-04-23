@@ -36,10 +36,10 @@ impl TaskWaitingCost {
             self.channels[problem.used_cost].await
         }
     }
-    pub fn release_cost_limit(&mut self) -> () {
-        self.current_max_cost += 1;
+    pub fn release_cost_limit(&mut self, count: usize) -> () {
+        self.current_max_cost += count;
         if self.current_max_cost < self.channels.len() {
-            self.channels[self.current_max_cost].get().send(());
+            let _ = self.channels[self.current_max_cost].get().send(());
         }
     }
 }
@@ -131,7 +131,7 @@ impl Executor {
         if self.counter.get() % 300000 == 0 {
             info!("Searching size={} [{}] - {:?} {:?}", self.cur_size.get(), self.counter.get(), e, v);
             if self.counter.get() > 300000 {
-                self.waiting_tasks().release_cost_limit();
+                self.waiting_tasks().release_cost_limit(self.cfg.config.increase_cost_limit);
             }
         }
         self.counter.update(|x| x + 1);

@@ -34,6 +34,8 @@ struct Cli {
     verbose: u8,
     #[arg(short, long)]
     debug: bool,
+    #[arg(long)]
+    showex: bool,
     path: String,
     #[arg(short, long)]
     cfg: Option<String>,
@@ -88,6 +90,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         };
         info!("CFG: {:?}", cfg);
         let ctx = Context::from_examples(&problem.examples);
+        if args.showex {
+            for i in ctx.inputs() {
+                println!("{:?}", i);
+            }
+            println!("{:?}", ctx.output);
+            return Ok(());
+        }
         let exec = Executor::new(ctx, cfg).galloc();
         info!("Deduction Configuration: {:?}", exec.deducers);
         let result = exec.block_on(exec.spawn_task(Problem::root(0, exec.ctx.output))).expect("Failure");

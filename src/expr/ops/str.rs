@@ -24,14 +24,14 @@ mod replace;
 pub use replace::*;
 
 
-new_op3_opt!(SubStr, "str.substr",
+new_op3!(SubStr, "str.substr",
     (Str, Int, Int) -> Str { |(s1, s2, s3)| {
-        if s1.len() == 0 { return None; }
+        if s1.len() == 0 { return ""; }
         if *s2 >= 0 && (*s2 as usize) < s1.len() && *s3 >= 0 {
             let i = *s2 as usize;
             let j = std::cmp::min(i + *s3 as usize, s1.len());
-            Some(&*s1[i..j].galloc_str())
-        } else { Some("") }
+            &*s1[i..j].galloc_str()
+        } else { "" }
     }}
 );
 

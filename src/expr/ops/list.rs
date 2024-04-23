@@ -58,14 +58,14 @@ new_op2_opt!(At, "list.at",
     }}
 );
 
-new_op2_opt!(StrAt, "str.at",
+new_op2!(StrAt, "str.at",
     (Str, Int) -> Str { |(s1, s2)| {
         if s1.len() > 0 {
             if *s2 >= 0 && (*s2 as usize) < s1.len() {
                 let i = *s2 as usize;
-                Some(&*s1[i..=i].galloc_str())
-            } else { Some("") }
-        } else { None }
+                &*s1[i..=i].galloc_str()
+            } else { "" }
+        } else { "" }
     }}
 );
 

@@ -6,6 +6,8 @@ use itertools::Itertools;
 
 use crate::galloc::AllocForExactSizeIter;
 use crate::galloc::AllocForIter;
+use crate::tree_learning::bits::BoxSliceExt;
+use crate::tree_learning::Bits;
 use crate::utils::F64;
 
 
@@ -58,6 +60,23 @@ pub enum Value {
     ListInt(&'static [&'static [i64]]),
     #[debug(fmt = "{:?}", _0)]
     ListStr(&'static [&'static [&'static str]]),
+    #[debug(fmt = "null")]
+    Null,
+}
+
+impl Value {
+
+    pub fn with_examples(self, exs: &[usize]) -> Value {
+        match self {
+            Value::Int(a) => Value::Int(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
+            Value::Float(a) => Value::Float(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
+            Value::Bool(a) => Value::Bool(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
+            Value::Str(a) => Value::Str(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
+            Value::ListInt(a) => Value::ListInt(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
+            Value::ListStr(a) => Value::ListStr(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
+            Value::Null => Value::Null,
+        }
+    }
 }
 
 impl Value {
@@ -69,6 +88,7 @@ impl Value {
             Self::Float(_) => Type::Float,
             Self::ListInt(_) => Type::ListInt,
             Self::ListStr(_) => Type::ListStr,
+            Self::Null => Type::Null,
         }
     }
     #[inline(always)]
@@ -80,6 +100,7 @@ impl Value {
             Value::Float(s) => s.len(),
             Value::ListInt(l) => l.len(),
             Value::ListStr(l) => l.len(),
+            Value::Null => 0,
         }
     }
     #[inline(always)]
@@ -88,6 +109,7 @@ impl Value {
             Value::Int(a) => None,
             Value::Bool(b) => None,
             Value::Float(s) => None,
+            Value::Null => None,
             Value::Str(s) => Some(s.iter().map(|x| x.len()).collect_vec()),
             Value::ListInt(l) => Some(l.iter().map(|x| x.len()).collect_vec()),
             Value::ListStr(l) => Some(l.iter().map(|x| x.len()).collect_vec()),
@@ -130,6 +152,9 @@ impl Value {
     pub fn to_bool(self) -> &'static [bool] {
         self.try_into().unwrap()
     }
+    pub fn to_bits(self) -> Bits {
+        Bits::from_bit_siter(self.to_bool().into_iter().cloned())
+    }
     pub fn is_all_true(&self) -> bool {
         if let Self::Bool(b) = self {
             b.iter().all(|x| *x == true)
@@ -158,6 +183,17 @@ impl Value {
             (Self::ListInt(a1), Self::ListInt(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
             (Self::ListStr(a1), Self::ListStr(a2)) => a1.iter().zip(a2.iter()).filter(|(a, b)| a == b).count(),
             _ => 0,
+        }
+    }
+    pub fn eq_bits(&self, other: &Self) -> Option<Bits> {
+        match (self, other) {
+            (Self::Int(a1), Self::Int(a2)) => Some(Bits::from_bit_siter(a1.iter().zip(a2.iter()).map(|(a, b)| a == b))),
+            (Self::Str(a1), Self::Str(a2)) => Some(Bits::from_bit_siter(a1.iter().zip(a2.iter()).map(|(a, b)| a == b))),
+            (Self::Float(a1), Self::Float(a2)) => Some(Bits::from_bit_siter(a1.iter().zip(a2.iter()).map(|(a, b)| a == b))),
+            (Self::Bool(a1), Self::Bool(a2)) => Some(Bits::from_bit_siter(a1.iter().zip(a2.iter()).map(|(a, b)| a == b))),
+            (Self::ListInt(a1), Self::ListInt(a2)) => Some(Bits::from_bit_siter(a1.iter().zip(a2.iter()).map(|(a, b)| a == b))),
+            (Self::ListStr(a1), Self::ListStr(a2)) => Some(Bits::from_bit_siter(a1.iter().zip(a2.iter()).map(|(a, b)| a == b))),
+            _ => None,
         }
     }
 }

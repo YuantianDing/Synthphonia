@@ -6,13 +6,13 @@ use derive_more::{Constructor, Deref, From, Into};
 use itertools::Itertools;
 
 use crate::{
-    backward::{ Problem, Deducer, DeducerEnum}, debg, debg2, expr::{
+    backward::{ Deducer, DeducerEnum, Problem}, debg, debg2, expr::{
          cfg::{Cfg, ProdRule}, context::Context, Expr
-    }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Value}, warn
+    }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, solutions::CONDITIONS, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Value}, warn
 };
 use crate::expr;
 use super::{
-    data::{self, all_eq, size::EV, Data}, future::{channel::Channel, eventbus::EventBusRc, task, taskrc::{TaskORc, TaskRc, TaskTRc}}
+    data::{self, all_eq, size::EV, Data}, future::{channel::Channel, eventbus::EventBusRc, task::{self, top_task_ready}, taskrc::{TaskORc, TaskRc, TaskTRc}}
 };
 
 pub trait EnumFn = FnMut(Expr, Value) -> Result<(), ()>;
@@ -137,9 +137,24 @@ impl Executor {
         self.counter.update(|x| x + 1);
         
         if let Some(e) = self.cur_data().update(self, e, v)? {
-            self.collect_expr(e,v)
+            self.collect_expr(e,v);
+            if self.cfg.config.cond_search {
+                self.collect_condition(e, v);
+            }
+        }
+        if top_task_ready() {
+            return Err(());
         }
         Ok(())
+    }
+    fn collect_condition(&'static self, e: &'static Expr, v: Value) {
+        if let Value::Bool(p) = v {
+            let tcount: usize = p.iter().map(|x| if *x { 1 } else { 0 }).sum();
+            if tcount >= 1 {
+                let mut conditions = CONDITIONS.lock();
+                conditions.push((e, v.to_bits()));
+            }
+        }
     }
     fn run(&'static self) -> Result<(), ()> {
         let _ = self.extract_expr_collector();

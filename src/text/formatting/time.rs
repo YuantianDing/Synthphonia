@@ -111,9 +111,9 @@ impl Enumerator1 for FormatTime {
 
 impl crate::expr::ops::Op1 for FormatTime {
     fn cost(&self) -> usize { 1 }
-    fn try_eval(&self,a1:Value) -> Option<Value>{
+    fn try_eval(&self,a1:Value) -> (bool, Value) {
         match a1 {
-            Value::Int(s) => Some(Value::Str(s.iter().map(|&s1|{
+            Value::Int(s) => (true, Value::Str(s.iter().map(|&s1|{
                 let time = NaiveTime::from_num_seconds_from_midnight_opt(s1 as u32, 0).unwrap_or(NaiveTime::default());
                 let mut h = time.hour();
                 let mut pm = false;
@@ -133,7 +133,7 @@ impl crate::expr::ops::Op1 for FormatTime {
                 }
                 result.galloc_str()
             }).galloc_scollect())),
-            _ => None,
+            _ => (false, Value::Null),
         }
     }
 }

@@ -33,16 +33,23 @@ impl crate::expr::ops::Op1 for ParseTime {
     fn cost(&self) -> usize {
         self.0
     }
-    fn try_eval(&self, a1: crate::value::Value) -> Option<crate::value::Value> {
+    fn try_eval(&self, a1: crate::value::Value) -> (bool, crate::value::Value) {
         match a1 {
             crate::value::Value::Str(s1) => {
+                let mut flag = true;
                 let a = s1
                     .iter()
-                    .map(|s1| self.parse_into(*s1).first().map(|(s, c)| c.as_i64().unwrap()))
-                    .galloc_try_scollect();
-                a.map(|a| crate::value::Value::Int(a))
+                    .map(|s1| {
+                        if let Some((s,c)) =  self.parse_into(*s1).first() {
+                            c.as_i64().unwrap()
+                        } else {
+                            flag = false;
+                            0
+                        }
+                    }).galloc_scollect();
+                (flag, a.into())
             }
-            _ => None,
+            _ => (false, Value::Null),
         }
     }
 }

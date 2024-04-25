@@ -51,19 +51,7 @@ impl Enumerator1 for FormatInt {
     fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Executor, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
-impl crate::expr::ops::Op1 for FormatInt {
-    fn cost(&self) -> usize {
-        self.0
-    }
-    fn try_eval(&self,a1:crate::value::Value) -> Option<crate::value::Value> {
-        match a1 {
-            Value::Int(s) => Some(Value::Str(s.iter().map(|s1| {
-                self.format_single(*s1).galloc_str()
-            }).galloc_scollect())),
-            _ => None,
-        }
-    }
-}
+crate::impl_formatop!(FormatInt, Int, |this: &FormatInt| this.0);
 
 fn conflict(a: usize, b: usize) -> Option<usize> {
     if a > 0 && b > 0 && a != b { return None; }

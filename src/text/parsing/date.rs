@@ -19,7 +19,7 @@ impl crate::expr::ops::Op1 for ParseDate {
     fn cost(&self) -> usize {
         self.0
     }
-    fn try_eval(&self, a1: crate::value::Value) -> Option<crate::value::Value> {
+    fn try_eval(&self, a1: crate::value::Value) -> (bool, crate::value::Value) {
         match a1 {
             crate::value::Value::Str(s1) => {
                 let a = s1
@@ -29,9 +29,9 @@ impl crate::expr::ops::Op1 for ParseDate {
                         res.sort_by_key(|(a,b)| -(a.len() as isize));
                         res.first().map(|(s, c)| c.as_i64().unwrap()).unwrap_or(0 as i64)
                     }).galloc_scollect();
-                Some(a.into())
+                (true, a.into())
             }
-            _ => None,
+            _ => (false, Value::Null),
         }
     }
 }

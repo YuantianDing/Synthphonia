@@ -8,7 +8,7 @@ pub mod join;
 #[derive(From, Into, Deref, DerefMut, DebugCustom, Display, PartialEq, PartialOrd, Clone, Copy)]
 #[debug(fmt = "{:?}", _0)]
 #[display(fmt = "{:?}", _0)]
-pub struct F64(f64);
+pub struct F64(pub f64);
 impl F64 {
     pub fn new(value: f64) -> Self {
         Self((value * 1e10).round() / 1e10)

@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use crate::{expr::{cfg::Cfg, context::Context, Expr}, text::parsing::TextObjData, value::{Type, Value}};
 
-use self::size::VecEv;
+use self::size::{VecEv, EV};
 
 use super::executor::Executor;
 

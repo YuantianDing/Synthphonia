@@ -19,7 +19,7 @@ impl crate::forward::enumeration::Enumerator1 for ParseWeekday {
 }
 
 impl_op1_opt!(ParseWeekday, "weekday.parse",
-    Str -> Int { |s1| {
+    Str -> Int { |s1| -> Option<i64> {
         todo!()
     }}
 );

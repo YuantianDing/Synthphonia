@@ -17,7 +17,7 @@ impl crate::forward::enumeration::Enumerator1 for ParseInt {
 }
 
 impl_op1_opt!(ParseInt, "int.parse",
-    Str -> Int { |s1| {
+    Str -> Int { |s1: &&str| -> Option<i64> {
         todo!()
     }}
 );

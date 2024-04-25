@@ -22,7 +22,7 @@ pub fn enumerate1(s: &impl Op1, this: &'static Op1Enum, exec: &'static Executor,
     if exec.size() <= s.cost() { return Ok(()); }
     for (e, v) in exec.data[opnt[0]].size.get_all(exec.size() - s.cost()) {
         let expr = Expr::Op1(this, *e);
-        if let Some(value) = s.try_eval(*v) {
+        if let (true, value) = s.try_eval(*v) {
             exec.enum_expr(expr, value)?;
         }
     }
@@ -42,7 +42,7 @@ pub fn enumerate2(s: &impl Op2, this: &'static Op2Enum, exec: &'static Executor,
     for (i, (e1, v1)) in exec.data[nt[0]].size.get_all_under(total) {
         for (e2, v2) in exec.data[nt[1]].size.get_all(total - i) {
             let expr = Expr::Op2(this, *e1, *e2);
-            if let Some(value) = s.try_eval(*v1, *v2) {
+            if let (true, value) = s.try_eval(*v1, *v2) {
                 exec.enum_expr(expr, value)?;
             }
         }
@@ -64,7 +64,7 @@ pub fn enumerate3(s: &impl Op3, this: &'static Op3Enum, exec: &'static Executor,
         for (j, (e2, v2)) in exec.data[nt[1]].size.get_all_under(total - i) {
             for (e3, v3) in exec.data[nt[2]].size.get_all(total - i - j) {
                 let expr = Expr::Op3(this, e1, e2, e3);
-                if let Some(value) = s.try_eval(*v1, *v2, *v3) {
+                if let (true, value) = s.try_eval(*v1, *v2, *v3) {
                     exec.enum_expr(expr, value)?;
                 }
             }

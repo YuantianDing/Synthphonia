@@ -3,7 +3,7 @@
 (synth-fun f ((name String)) String
     (
       (Start String (ntString))
-      (ntString String (" " name
+      (ntString String (" " "," "-" name
             (str.++ ntString ntString) 
             (str.head ntString ntFloat #cost:4)
             (str.tail ntString ntFloat #cost:4)
@@ -41,7 +41,7 @@
             (str.to.float ntString)
             (float.+ ntFloat ntFloat)
             (float.neg ntFloat)
-            (float.shl10 ntFloat ntInt)
+            ; (float.shl10 ntFloat ntInt)
             (float.floor ntFloat ntFloat #cost:2)
             (float.ceil ntFloat ntFloat #cost:2)
             (float.round ntFloat ntFloat #cost:2)
@@ -66,25 +66,7 @@
 ))
 
 
-(constraint (= (f "163") "160-169"))
-(constraint (= (f "111") "110-119"))
-(constraint (= (f "111") "110-119"))
-(constraint (= (f "88") "80-89"))
-(constraint (= (f "54") "50-59"))
-(constraint (= (f "93") "90-99"))
-(constraint (= (f "93") "90-99"))
-(constraint (= (f "6") "0-9"))
-(constraint (= (f "199") "190-209"))
-(constraint (= (f "62") "60-69"))
-(constraint (= (f "169") "160-179"))
-(constraint (= (f "6") "0-9"))
-(constraint (= (f "105") "100-109"))
-(constraint (= (f "137") "130-139"))
-(constraint (= (f "16") "10-19"))
-(constraint (= (f "90") "90-99"))
-(constraint (= (f "197") "190-199"))
-(constraint (= (f "152") "150-159"))
-(constraint (= (f "76") "70-79"))
-(constraint (= (f "191") "190-199"))
+(constraint (= (f "163,169") "163-169"))
+(constraint (= (f "166-169") "166,169"))
 
 (check-synth)

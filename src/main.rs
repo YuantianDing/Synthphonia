@@ -16,17 +16,23 @@ pub mod value;
 pub mod expr;
 pub mod forward;
 pub mod backward;
+pub mod tree_learning;
+pub mod solutions;
 pub mod text;
-use std::{borrow::BorrowMut, cell::Cell, fs};
+use std::{borrow::BorrowMut, cell::Cell, cmp::min, fs, process::exit};
 
 use clap::Parser;
-use expr::{cfg::Cfg, context::Context};
+use expr::{cfg::Cfg, context::Context, Expr};
 use forward::executor::Executor;
+use futures::{stream::FuturesUnordered, StreamExt};
 use galloc::AllocForAny;
 use itertools::Itertools;
+use mapped_futures::mapped_futures::MappedFutures;
 use parser::check::CheckProblem;
+use solutions::new_thread;
+use tokio::task::JoinHandle;
 
-use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, value::Type};
+use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, solutions::{cond_search_thread, Solutions}, value::Type};
 #[derive(Debug, Parser)]
 #[command(name = "stren")]
 struct Cli {
@@ -36,6 +42,10 @@ struct Cli {
     debug: bool,
     #[arg(long)]
     showex: bool,
+    #[arg(short='j', long, default_value_t=4)]
+    thread: usize,
+    #[arg(long)]
+    cond_search: bool,
     path: String,
     #[arg(short, long)]
     cfg: Option<String>,
@@ -46,8 +56,8 @@ struct Cli {
 #[thread_local]
 pub static DEBUG: Cell<bool> = Cell::new(false);
 
-
-fn main() -> Result<(), Box<dyn std::error::Error>>{
+#[tokio::main(flavor = "multi_thread")]
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let args = Cli::parse();
     log::set_log_level(args.verbose + 2);
     DEBUG.set(args.debug);
@@ -97,11 +107,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
             println!("{:?}", ctx.output);
             return Ok(());
         }
-        let exec = Executor::new(ctx, cfg).galloc();
-        info!("Deduction Configuration: {:?}", exec.deducers);
-        let result = exec.block_on(exec.spawn_task(Problem::root(0, exec.ctx.output))).expect("Failure");
-        let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
-        println!("{}", func);
+        if args.thread == 1 {
+            if args.cond_search {
+                cfg.config.cond_search = true;
+            }
+            let exec = Executor::new(ctx, cfg).galloc();
+            info!("Deduction Configuration: {:?}", exec.deducers);
+            let result = exec.block_on(exec.spawn_task(Problem::root(0, exec.ctx.output))).expect("Failure");
+            let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
+            println!("{}", func);
+        } else {
+            let mut solutions = Solutions::new(cfg.clone(), ctx.clone());
+
+            solutions.create_cond_search_thread();
+            for i in 0..min(args.thread, ctx.len) {
+                solutions.create_new_thread();
+            }
+
+            let result = solutions.solve_loop().await;
+            let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
+            println!("{}", func);
+            exit(0);
+        }
     }
     Ok(())
 }
+
+
+

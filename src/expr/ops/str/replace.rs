@@ -36,7 +36,7 @@ impl Enumerator3 for Replace {
             for (j, (e3, v3)) in exec.data[nt[1]].size.get_all_under(min(total - i, self.1)) {
                 for (e1, v1) in exec.data[nt[2]].size.get_all(total - i - j) {
                     let expr = Expr::Op3(this, e1, e2, e3);
-                    if let Some(value) = self.try_eval(*v1, *v2, *v3) {
+                    if let (true, value) = self.try_eval(*v1, *v2, *v3) {
                         exec.enum_expr(expr, value)?;
                     }
                 }
@@ -50,14 +50,14 @@ impl Op3 for Replace {
     fn cost(&self) -> usize {
         self.0
     }
-    fn try_eval(&self, a1: Value, a2: Value, a3: Value) -> Option<Value> {
+    fn try_eval(&self, a1: Value, a2: Value, a3: Value) -> (bool, Value) {
         match (a1, a2, a3) {
-            (Value::Str(s1), Value::Str(s2), Value::Str(s3)) => Some(Value::Str(
+            (Value::Str(s1), Value::Str(s2), Value::Str(s3)) => (true, Value::Str(
                 itertools::izip!(s1.iter(), s2.iter(), s3.iter())
                     .map(|(s1, s2, s3)| &*s1.replacen(*s2, s3, 1).galloc_str())
                     .galloc_scollect(),
             )),
-            _ => None,
+            _ => (false, Value::Null),
         }
     }
 }

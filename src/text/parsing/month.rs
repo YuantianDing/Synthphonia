@@ -15,7 +15,7 @@ impl crate::forward::enumeration::Enumerator1 for ParseMonth {
 }
 
 impl_op1_opt!(ParseMonth, "month.parse",
-    Str -> Int { |s1| {
+    Str -> Int { |s1| -> Option<i64> {
         todo!()
     }}
 );

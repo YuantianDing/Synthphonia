@@ -25,7 +25,8 @@ impl FormatFloat {
             min_size: (0, 0)
         }
     }
-    pub fn format_single(&self, value: f64) -> String {
+    pub fn format_single(&self, value: F64) -> String {
+        let value = *value;
         let value_int = if value >= 0.0 { value.floor() } else { value.ceil() };
         let left = if self.padding.0 > 0 {
             format!("{:0left$}", value_int, left= self.padding.0)
@@ -73,19 +74,7 @@ impl Enumerator1 for FormatFloat {
     fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Executor, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
-impl crate::expr::ops::Op1 for FormatFloat {
-    fn cost(&self) -> usize {
-        self.cost
-    }
-    fn try_eval(&self,a1:crate::value::Value) -> Option<crate::value::Value>{
-        match a1 {
-            Value::Float(s) => Some(Value::Str(s.iter().map(|s1| {
-                self.format_single(**s1).galloc_str()
-            }).galloc_scollect())),
-            _ => None,
-        }
-    }
-}
+crate::impl_formatop!(FormatFloat, Float, |this: &FormatFloat| this.cost);
 
 impl FormattingOp for FormatFloat {
     fn format(&self, input: &'static str) -> Option<(Self, crate::value::ConstValue, &'static str)> {
@@ -126,16 +115,16 @@ mod tests {
     #[test]
     fn format() {
         let a = "001234000.01010";
-        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap()), a);
+        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap().into()), a);
         let a = "001234000.0101";
-        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap()), a);
+        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap().into()), a);
         let a = "1234000.01010";
-        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap()), a);
+        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap().into()), a);
         let a = "1234000.01010";
-        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap()), a);
+        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap().into()), a);
         let a = "-01234000.01010";
-        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap()), a);
+        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap().into()), a);
         let a = "-1234000.0101000";
-        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap()), a);
+        assert_eq!(FormatFloat::get_format(a).format_single(a.parse::<f64>().unwrap().into()), a);
     }
 }

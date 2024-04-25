@@ -53,6 +53,9 @@ pub enum DeducerEnum {
 
 impl DeducerEnum {
     pub fn from_nt(cfg: &Cfg, ctx: &Context, nt: usize) -> Self {
+        if cfg.config.no_deduction {
+            return Self::Simple(SimpleDeducer{ nt });
+        }
         match cfg[nt].ty {
             crate::value::Type::Str => {
                 let mut result = StrDeducer::new(nt);

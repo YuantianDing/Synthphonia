@@ -5,7 +5,7 @@ use regex::Regex;
 
 use crate::forward::enumeration::Enumerator1;
 use crate::utils::F64;
-use crate::value::ConstValue;
+use crate::value::{ConstValue, Value};
 use chrono::Timelike;
 use crate::{ impl_name, impl_op1, parser::config::Config};
 
@@ -53,23 +53,23 @@ impl crate::expr::ops::Op1 for FormatWeekday {
     fn cost(&self) -> usize {
         self.0
     }
-    fn try_eval(&self, a1: crate::value::Value) -> Option<crate::value::Value> {
+    fn try_eval(&self, a1: crate::value::Value) -> (bool, crate::value::Value) {
         match a1 {
             crate::value::Value::Int(s1) => {
                 let a = s1.iter().map(|&s1| {
-                    if !(s1 >= 1 && s1 <= 7) { return None; }
+                    if !(s1 >= 1 && s1 <= 7) { return ""; }
                     let weekday_abbv = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                     let weekday_full = ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
                     
                     if let Some(true) = self.1 {
-                        Some(weekday_abbv[s1 as usize])
+                        weekday_abbv[s1 as usize]
                     } else {
-                        Some(weekday_full[s1 as usize])
+                        weekday_full[s1 as usize]
                     }
-                }).galloc_try_scollect();
-                a.map(|a| crate::value::Value::Str(a))
+                }).galloc_scollect();
+                (true, a.into())
             }
-            _ => None,
+            _ => (false, Value::Null),
         }
     }
 }

@@ -1,6 +1,9 @@
 
 use derive_more::{DebugCustom, Constructor};
-use crate::{parser::{ioexamples::IOExamples, problem::PBEProblem}, value::Value};
+use itertools::Itertools;
+use crate::{parser::{ioexamples::IOExamples, problem::PBEProblem}, tree_learning::Bits, value::Value};
+
+use super::Expr;
 
 #[derive(DebugCustom, Constructor, Clone)]
 #[debug(fmt = "(n: {:?}, p: {:?})", n, p)]
@@ -25,6 +28,18 @@ impl Context {
     }
     pub fn outputs(&self) -> impl Iterator<Item=Value> + '_ {
         [self.output.clone()].into_iter()
+    }
+    pub fn evaluate(&self, e: &'static Expr) -> Option<Bits> {
+        let v = e.eval(self);
+        self.output.eq_bits(&v)
+    }
+    pub fn with_examples(&self, exs: &[usize]) -> Context {
+        Context {
+            len: exs.len(),
+            p: self.p.iter().map(|x| x.with_examples(exs)).collect_vec(),
+            n: self.n.iter().map(|x| x.with_examples(exs)).collect_vec(),
+            output: self.output.with_examples(exs),
+        }
     }
 }
 

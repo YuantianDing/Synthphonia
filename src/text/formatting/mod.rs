@@ -73,3 +73,21 @@ impl Op1Enum {
     }
 }
 
+#[macro_export]
+macro_rules! impl_formatop {
+    ($opname:ident, $t:ident, $costf:expr) => {
+        impl crate::expr::ops::Op1 for $opname {
+            fn cost(&self) -> usize {
+                $costf(self)
+            }
+            fn try_eval(&self,a1:crate::value::Value) -> (bool, crate::value::Value) {
+                match a1 {
+                    Value::$t(s) => (true, Value::Str(s.iter().map(|s1| {
+                        self.format_single(*s1).galloc_str()
+                    }).galloc_scollect())),
+                    _ => (false, Value::Null),
+                }
+            }
+        }
+    };
+}

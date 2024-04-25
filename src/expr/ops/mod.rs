@@ -31,12 +31,12 @@ pub mod macros;
 #[enum_dispatch]
 pub trait Op1: Clone + std::fmt::Display {
     fn cost(&self) -> usize;
-    fn try_eval(&self, a1: Value) -> Option<Value>;
+    fn try_eval(&self, a1: Value) -> (bool, Value);
 }
 
 impl Op1Enum {
     pub fn eval(&self, a1: Value) -> Value {
-        let a = self.try_eval(a1).unwrap_or_else(|| panic!("failed evaluate {}", self));
+        let a = self.try_eval(a1).1;
         a
     }
 }
@@ -44,21 +44,21 @@ impl Op1Enum {
 #[enum_dispatch]
 pub trait Op2 : Clone + std::fmt::Display {
     fn cost(&self) -> usize;
-    fn try_eval(&self, a1: Value, a2: Value) -> Option<Value>;
+    fn try_eval(&self, a1: Value, a2: Value) -> (bool, Value);
 }
 
 impl Op2Enum {
-    pub fn eval(&self, a1: Value, a2: Value) -> Value { self.try_eval(a1, a2).unwrap_or_else(|| panic!("failed evaluate {}", self)) }
+    pub fn eval(&self, a1: Value, a2: Value) -> Value { self.try_eval(a1, a2).1 }
 }
 
 #[enum_dispatch]
 pub trait Op3 : Clone + std::fmt::Display {
     fn cost(&self) -> usize;
-    fn try_eval(&self, a1: Value, a2: Value, a3: Value) -> Option<Value>;
+    fn try_eval(&self, a1: Value, a2: Value, a3: Value) -> (bool, Value);
 }
 
 impl Op3Enum {
-    pub fn eval(&self, a1: Value, a2: Value, a3: Value) -> Value { self.try_eval(a1, a2, a3).unwrap_or_else(|| panic!("failed evaluate {}", self)) }
+    pub fn eval(&self, a1: Value, a2: Value, a3: Value) -> Value { self.try_eval(a1, a2, a3).1 }
 }
 
 #[enum_dispatch(Op1)]

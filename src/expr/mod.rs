@@ -1,6 +1,6 @@
 use enum_dispatch::enum_dispatch;
 
-use crate::{debg2, parser::problem::FunSig, value::{ConstValue, Value}};
+use crate::{debg2, galloc::AllocForAny, parser::problem::FunSig, value::{ConstValue, Value}};
 
 
 pub mod context;
@@ -33,7 +33,6 @@ impl Expr {
             Expr::Op2(op2, a1, a2) => op2.eval(a1.eval(ctx), a2.eval(ctx)),
             Expr::Op3(op3, a1, a2, a3) => op3.eval(a1.eval(ctx), a2.eval(ctx), a3.eval(ctx)),
         };
-        debg2!("{:?} => {:?}", self, result);
         result
     }
     pub fn cost(&self) -> usize {
@@ -66,6 +65,9 @@ impl Expr {
             Expr::Op3(op3, a1, a2, a3) => format!("({} {} {} {})", op3, a1.format(sig), a2.format(sig), a3.format(sig)),
         }
     }
+    pub fn ite(&'static self, t: &'static Expr, f: &'static Expr) -> &'static Expr {
+        crate::expr!(Ite {self} {t} {f}).galloc()
+    }
 }
 
 #[macro_export]
@@ -74,13 +76,13 @@ macro_rules! expr_no_use {
     ([$l:literal]) => { crate::expr::Expr::Var($l)};
     ({$l:expr}) => { $l };
     ($op:ident $a1:tt) => { 
-        crate::expr::Expr::Op1(Op1Enum::$op($op::default()).galloc(), expr![$a1].galloc())
+        crate::expr::Expr::Op1(Op1Enum::$op($op::default()).galloc(), crate::expr![$a1].galloc())
     };
     ($op:ident $a1:tt $a2:tt) => { 
-        crate::expr::Expr::Op2(Op2Enum::$op($op::default()).galloc(), expr![$a1].galloc(), expr![$a2].galloc())
+        crate::expr::Expr::Op2(Op2Enum::$op($op::default()).galloc(), crate::expr![$a1].galloc(), crate::expr![$a2].galloc())
     };
     ($op:ident $a1:tt $a2:tt $a3:tt) => {
-        crate::expr::Expr::Op3(Op3Enum::$op($op::default()).galloc(), expr![$a1].galloc(), expr![$a2].galloc(), expr![$a3].galloc())
+        crate::expr::Expr::Op3(Op3Enum::$op($op::default()).galloc(), crate::expr![$a1].galloc(), crate::expr![$a2].galloc(), crate::expr![$a3].galloc())
     };
     ( ($( $inner:tt )*) ) => { $crate::expr_no_use!($($inner)*) };
 }

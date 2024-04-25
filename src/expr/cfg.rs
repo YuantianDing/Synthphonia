@@ -117,7 +117,10 @@ pub struct CfgConfig {
     pub size_limit: usize,
     pub substr_samples: usize,
     pub listsubseq_samples: usize,
-    pub increase_cost_limit: usize
+    pub increase_cost_limit: usize,
+    pub cond_search: bool,
+    pub no_deduction: bool,
+    pub ite_limit_rate: usize,
 }
 
 impl From<Config> for CfgConfig {
@@ -127,6 +130,9 @@ impl From<Config> for CfgConfig {
             substr_samples: value.get_i64("data.substr.sample").unwrap_or(6) as usize,
             listsubseq_samples: value.get_i64("data.listsubseq.sample").unwrap_or(0) as usize,
             increase_cost_limit: value.get_i64("increase_cost_limit").unwrap_or(1) as usize,
+            cond_search: false,
+            no_deduction: false,
+            ite_limit_rate: value.get_i64("ite_limit_rate").unwrap_or(4000) as usize,
         }
     }
 }

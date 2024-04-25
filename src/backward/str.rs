@@ -70,11 +70,11 @@ impl Deducer for StrDeducer {
         }
         let problem2 = problem.clone();
 
-        let mut delimiterset = HashSet::<Vec<&'static str>>::new();
+        let mut delimiterset = HashSet::<Value>::new();
         let futures = FutureRcVec::new();
         let inner_func = closure! { clone futures; move |delimiter: Value| {
-            let vec = delimiter.to_str().iter().zip(problem.value.to_str().iter()).map(|(a, b)| if b.contains(a) { *a } else { &"" }).collect_vec();
-            if delimiterset.insert(vec) {
+            let all_contains = delimiter.to_str().iter().zip(problem.value.to_str().iter()).all(|(a, b)| b.contains(a));
+            if all_contains && delimiterset.insert(delimiter) {
                 futures.extend(this.on_delim(exec, problem, delimiter));
             }
             None::<&'static Expr>
@@ -146,7 +146,7 @@ impl StrDeducer {
         task::spawn( async move {
             let (a,b, cases) = split_once(v, delimiter);
             if !cases.is_all_true() && self.ite_concat.1 == usize::MAX { return never!() }
-            if !cases.is_all_true() { exec.waiting_tasks().inc_cost(&mut problem, 1).await; }
+            exec.waiting_tasks().inc_cost(&mut problem, 2).await;
 
             let left = exec.solve_task(problem.with_value(a)).await;
             let right = exec.solve_task(problem.with_value(b)).await;
@@ -171,7 +171,7 @@ impl StrDeducer {
         debg!("TASK#{}/{} StrDeducer::ite_concat {count}/{} {eq_count}/{} {v:?} {delimiter:?}", currect_task_id(), exec.problem_count(), self.ite_concat_count(exec), self.ite_concat_eq_count(exec));
         task::spawn( async move {
             let (a, b) = ite_concat_split(v, delimiter);
-            if !a.is_all_true() { exec.waiting_tasks().inc_cost(&mut problem, 2).await; }
+            exec.waiting_tasks().inc_cost(&mut problem, 2).await;
 
             let right = exec.solve_task(problem.with_value(b)).await;
             let left = exec.data[self.nt].all_eq.get(delimiter.into());
@@ -197,8 +197,7 @@ impl StrDeducer {
         let v = problem.value.to_str();
         if let Some((op, a, b, cond)) = formatter.0.format_all(v) {
             debg!("TASK#{}/{} StrDeducer::fmt {v:?} {formatter:?}", currect_task_id(), exec.problem_count());
-            if !cond.is_all_true() { exec.waiting_tasks().inc_cost(&mut problem, 1).await; }
-            else { exec.waiting_tasks().inc_cost(&mut problem, 1).await; }
+            exec.waiting_tasks().inc_cost(&mut problem, 2).await;
 
             let inner = exec.solve_task(problem.with_nt(formatter.1, a)).await;
             let rest = exec.solve_task(problem.with_nt(self.nt, b)).await;

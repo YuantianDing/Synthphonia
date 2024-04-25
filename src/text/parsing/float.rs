@@ -18,7 +18,7 @@ impl crate::forward::enumeration::Enumerator1 for ParseFloat {
 }
 
 impl_op1_opt!(ParseFloat, "float.parse",
-    Str -> Int { |s1| {
+    Str -> Int { |s1: &&str| -> Option<i64> {
         todo!()
     }}
 );

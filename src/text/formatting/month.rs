@@ -6,7 +6,7 @@ use regex::Regex;
 use crate::forward::enumeration::Enumerator1;
 use crate::impl_op1_opt;
 use crate::utils::F64;
-use crate::value::ConstValue;
+use crate::value::{ConstValue, Value};
 use crate::{impl_name, impl_op1, parser::config::Config};
 use chrono::Timelike;
 
@@ -62,23 +62,23 @@ impl crate::expr::ops::Op1 for FormatMonth {
     fn cost(&self) -> usize {
         self.0
     }
-    fn try_eval(&self, a1: crate::value::Value) -> Option<crate::value::Value> {
+    fn try_eval(&self, a1: crate::value::Value) -> (bool, crate::value::Value) {
         match a1 {
             crate::value::Value::Int(s1) => {
                 let a = s1.iter().map(|&s1| {
-                    if !(s1 >= 1 && s1 <= 12) { return Some(""); }
+                    if !(s1 >= 1 && s1 <= 12) { return ""; }
                     let months_abbv = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                     let months_full = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                     
                     if let Some(true) = self.1 {
-                        Some(months_abbv[s1 as usize])
+                        months_abbv[s1 as usize]
                     } else {
-                        Some(months_full[s1 as usize])
+                        months_full[s1 as usize]
                     }
-                }).galloc_try_scollect();
-                a.map(|a| crate::value::Value::Str(a))
+                }).galloc_scollect();
+                (true, a.into())
             }
-            _ => None,
+            _ => (false, Value::Null),
         }
     }
 }

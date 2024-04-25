@@ -37,7 +37,7 @@ impl Enumerator3 for Ite {
             for (j, (e2, v2)) in exec.data[nt[1]].size.get_all_under(total - i) {
                 for (_, (e3, v3)) in exec.data[nt[2]].size.get_all_under(total - i - j) {
                     let expr = super::Expr::Op3(this, e1, e2, e3);
-                    if let Some(value) = self.try_eval(*v1, *v2, *v3) {
+                    if let (true, value) = self.try_eval(*v1, *v2, *v3) {
                         exec.enum_expr(expr, value)?;
                     }
                 }
@@ -52,6 +52,12 @@ impl_op3!(Ite, "ite",
         if *s1 {*s2} else {*s3}
     }},
     (Bool, Str, Str) -> Str { |(s1, s2, s3)| {
+        if *s1 {*s2} else {*s3}
+    }},
+    (Bool, Bool, Bool) -> Bool { |(s1, s2, s3)| {
+        if *s1 {*s2} else {*s3}
+    }},
+    (Bool, Float, Float) -> Float { |(s1, s2, s3)| {
         if *s1 {*s2} else {*s3}
     }}
 );

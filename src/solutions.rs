@@ -13,6 +13,11 @@ use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr}, f
 
 pub static CONDITIONS: spin::Mutex<Vec<(&'static Expr, Bits)>> = spin::Mutex::new(Vec::new());
 
+pub fn bicoeff(n: usize, p: usize) -> usize {
+    let a: usize = (0..p).map(|i| n - i).product();
+    let b: usize = (1..=p).product();
+    a.div_ceil(b)
+}
 
 pub struct Solutions {
     cfg: Cfg,
@@ -43,6 +48,10 @@ impl Solutions {
             self.solutions.push((expr, b.clone()));
             debg!("Solutions [{}/{}]: {:?}", self.solved_examples.count_ones(), self.ctx.len, self.solutions);
 
+            if b.count_ones() == self.ctx.len as u32 {
+                return Some(expr);
+            }
+            
             // Updating threads
             let keys = self.threads.keys().cloned().collect_vec();
             for k in keys {
@@ -54,11 +63,8 @@ impl Solutions {
                     }
                 }
             }
-
             // Generating Solution
-            if b.count_ones() == self.ctx.len as u32 {
-                Some(expr)
-            } else { self.generate_result(true) }
+            self.generate_result(true)
         } else { None }
     }
     pub fn generate_result(&self, limit: bool) -> Option<&'static Expr> {
@@ -90,7 +96,8 @@ impl Solutions {
     }
     pub fn generate_example_set(&mut self) -> Option<Vec<usize>> {
         let mut rng = rand::thread_rng();
-        for k in 1..std::cmp::min(5, self.ctx.len) {
+        for k in 1..self.ctx.len {
+            if bicoeff(self.ctx.len, k) > 4000000 { break; }
             let mut vec = (0..self.ctx.len).combinations(k).collect_vec();
             vec.shuffle(&mut rng);
             for v in vec {

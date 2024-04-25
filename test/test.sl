@@ -41,7 +41,7 @@
             (str.to.float ntString)
             (float.+ ntFloat ntFloat)
             (float.neg ntFloat)
-            ; (float.shl10 ntFloat ntInt)
+            (float.shl10 ntFloat ntInt)
             (float.floor ntFloat ntFloat #cost:2)
             (float.ceil ntFloat ntFloat #cost:2)
             (float.round ntFloat ntFloat #cost:2)

@@ -1,3 +1,6 @@
+
+#![allow(unused_imports)] 
+#![allow(unused_mut)] 
 #![feature(int_roundings)]
 #![feature(unchecked_math)]
 #![feature(thread_local)]

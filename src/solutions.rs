@@ -33,7 +33,7 @@ impl Solutions {
     pub fn add_new_solution(&mut self, expr: &'static Expr) -> Option<&'static Expr> {
         if let Some(b) = self.ctx.evaluate(expr) {
             // Updating solutions
-            for (e, bits) in self.solutions.iter() {
+            for (_, bits) in self.solutions.iter() {
                 if b.subset(&bits) {
                     return None;
                 }
@@ -81,7 +81,7 @@ impl Solutions {
         }
     }
     pub fn check_cover(&self, example_set: &[usize]) -> bool {
-        for (e, bits) in self.solutions.iter() {
+        for (_, bits) in self.solutions.iter() {
             if example_set.iter().all(|i| bits.get(*i)) {
                 return true;
             }

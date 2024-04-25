@@ -116,13 +116,13 @@ impl StrDeducer {
         result
     }
     #[inline]
-    fn decay(&self, exec: &'static Executor, i: usize) -> usize {
+    fn decay(&self, _exec: &'static Executor, i: usize) -> usize {
         let rate = self.decay_rate;
         let task = rate + min(100 * rate, number_of_task());
         if i != usize::MAX { (i * task) / rate } else { i }
     }
     #[inline]
-    fn decay2(&self, exec: &'static Executor, i: usize) -> usize {
+    fn decay2(&self, _exec: &'static Executor, i: usize) -> usize {
         let rate = self.decay_rate;
         let task = rate + min(100 * rate, 20 * number_of_task());
         if i != usize::MAX { (i * task) / rate } else { i }

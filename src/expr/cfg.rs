@@ -115,7 +115,7 @@ impl NonTerminal {
 #[derive(Clone)]
 pub struct CfgConfig {
     pub size_limit: usize,
-    pub substr_samples: usize,
+    pub substr_limit: usize,
     pub listsubseq_samples: usize,
     pub increase_cost_limit: usize,
     pub cond_search: bool,
@@ -127,7 +127,7 @@ impl From<Config> for CfgConfig {
     fn from(value: Config) -> Self {
         Self {
             size_limit: value.get_usize("size_limit").unwrap_or(usize::MAX),
-            substr_samples: value.get_i64("data.substr.sample").unwrap_or(6) as usize,
+            substr_limit: value.get_i64("data.substr.limit").unwrap_or(4) as usize,
             listsubseq_samples: value.get_i64("data.listsubseq.sample").unwrap_or(0) as usize,
             increase_cost_limit: value.get_i64("increase_cost_limit").unwrap_or(1) as usize,
             cond_search: false,

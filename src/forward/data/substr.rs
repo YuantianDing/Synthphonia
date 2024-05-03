@@ -1,143 +1,201 @@
-use std::{ops::Range, cell::UnsafeCell, collections::HashSet};
 
-use derive_more::Deref;
+
+use std::{cell::UnsafeCell, collections::HashSet, iter, ops::Range};
+
+use derive_more::{Deref, DerefMut};
+use futures::SinkExt;
 use iset::IntervalMap;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
+use rc_async::sync::broadcast;
 
-use crate::{expr::Expr, forward::future::{eventbus::EventBusRc, channel::Channel, task::{currect_task_id, self}, taskrc::TaskORc}, value::Value, utils::UnsafeCellExt, debg};
+use crate::{closure, expr::Expr, forward::executor::Executor, utils::UnsafeCellExt, value::Value};
 
 use super::size::EV;
-
-#[derive(Default)]
-pub struct StrData<T: Clone + 'static> {
-    pub expected: &'static str,
-    found: IntervalMap<usize, Vec<T>>,
-    event: IntervalMap<usize, Vec<Channel<T>>>,
+pub fn subrange(r1: &[Range<usize>], r2: &[Range<usize>]) -> bool {
+    assert_eq!(r1.len(), r2.len());
+    r1.iter().zip(r2.iter()).all(|(a,b)| b.start <= a.start && a.end <= b.end)
 }
 
-impl<T: Clone> StrData<T> {
-    pub fn new(expected: &'static str) -> Self { Self { expected, found: IntervalMap::new(), event: IntervalMap::new() } }
-    #[inline]
-    pub fn add_to(&mut self, s: &'static str, value: T, hashset: &mut HashSet<Channel<T>>) {
-        for (i, _) in self.expected.match_indices(s) {
-            let range = i..(i+s.len());
-            // for (r, _) in self.found.iter(range.clone()) {
-            //     if r != range && r.start <= range.start && r.end >= range.end {
-            //         return;
-            //     }
-            // }
-            match self.found.entry(range.clone()) {
-                iset::Entry::Vacant(v) => { v.insert(vec![value.clone()]); }
-                iset::Entry::Occupied(mut o) => { o.get_mut().push(value.clone()) }
-            }
 
-            for (r, e) in self.event.iter(range.clone()) {
-                if r.start <= range.start && r.end >= range.end {
-                    for c in e {
-                        hashset.insert(c.clone());
+pub enum NestedIntervalTree<T>{
+    Node(IntervalMap<usize, Box<NestedIntervalTree<T>>>),
+    Leaf(T)
+}
+
+impl<T: Clone> NestedIntervalTree<T> {
+    pub fn build(mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>>> + Clone, value: T) -> Self {
+        if let Some(head) = ranges.next() {
+            let mut maps = IntervalMap::new();
+            for range in head {
+                let inner = Self::build(ranges.clone(), value.clone());
+                maps.insert(range, inner.into());
+            }
+            Self::Node(maps)
+        } else {
+            Self::Leaf(value)
+        }
+    }
+    pub fn insert_using_iter<'a: 'b, 'b>(&'a mut self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b, update: &impl Fn(&mut T) -> (), default: T) {
+        let head = ranges.next();
+        match (self, head) {
+            (NestedIntervalTree::Node(maps), Some(head)) => {
+                for range in head {
+                    if let Some(r) = maps.get_mut(range.clone()) {
+                        r.insert_using_iter(ranges.clone(), update, default.clone());
+                    } else {
+                        maps.insert(range, Self::build(ranges.clone(), default.clone()).into());
                     }
                 }
             }
+            (NestedIntervalTree::Leaf(v), None) => {
+                update(v);
+            }
+            _ => panic!("DeepIntervalTree have a different number of ranges indices."),
         }
     }
-    pub fn all_subrange(&self, range: Range<usize>) -> impl Iterator<Item=&T> + '_ {
-        self.found.values(range).flatten()
+    pub fn insert_multiple<'a: 'b, 'b>(&'a mut self, ranges: &Vec<Vec<Range<usize>>>, value: T) {
+        self.insert_using_iter(ranges.iter().map(|x| x.iter().cloned()), &|_| (), value)
     }
-    pub fn listen_at(&mut self, range: Range<usize>, chan: Channel<T>) {
-        crate::debg2!("Task#{} listening at {:?} of {}", currect_task_id(), range, self.expected);
-        match self.event.entry(range) {
-            iset::Entry::Vacant(v) => {
-                v.insert(vec![chan]);
-            }
-            iset::Entry::Occupied(mut o) => {
-                o.get_mut().push(chan);
-            }
-        }
+    pub fn insert<'a: 'b, 'b>(&'a mut self, ranges: &[Range<usize>], value: T) {
+        self.insert_using_iter(ranges.iter().map(|x| iter::once(x.clone()).into_iter()), &|_| (), value)
     }
 }
 
-pub struct Data(UnsafeCell<Vec<(usize, StrData<Value>)>>);
+impl<T> NestedIntervalTree<T> {
+    pub fn new() -> Self {
+        Self::Node(IntervalMap::new())
+    }
+    pub fn get(&self, ranges: &[Range<usize>]) -> Option<&T> {
+        match self {
+            NestedIntervalTree::Node(maps) if ranges.len() > 0 => {
+                let (head, tail) = (&ranges[0], &ranges[1..]);
+                maps.get(head.clone()).and_then(|x| x.get(tail))
+            }
+            NestedIntervalTree::Leaf(v) if ranges.len() == 0 => Some(v),
+            _ => None,
+        }
+    }
+    pub fn superrange_using_iter<'a: 'b, 'b>(&'a self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b) -> Box<dyn Iterator<Item=&T> + 'b> {
+        let head = ranges.next();
+        match (self, head) {
+            (NestedIntervalTree::Node(maps), Some(head)) => {
+                let it = head.flat_map(move |head| {
+                    maps.iter(head.clone())
+                        .filter(move |(r, _)| head.start >= r.start && r.end >= head.end) 
+                        .flat_map(closure![clone ranges; move |(_, t)| t.superrange_using_iter(ranges.clone())])
+                });
+                Box::new(it)
+            }
+            (NestedIntervalTree::Leaf(v), None) => Box::new(Some(v).into_iter()),
+            _ => panic!("DeepIntervalTree have a different number of ranges indices."),
+        }
+    }
+    pub fn subrange_using_iter<'a: 'b, 'b>(&'a self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b) -> Box<dyn Iterator<Item=&T> + 'b> {
+        let head = ranges.next();
+        match (self, head) {
+            (NestedIntervalTree::Node(maps), Some(head)) => {
+                let it = head.flat_map(move |head| {
+                    maps.iter(head.clone())
+                        .filter(move |(r, _)| r.start >= head.start && head.end >= r.end) 
+                        .flat_map(closure![clone ranges; move |(_, t)| t.subrange_using_iter(ranges.clone())])
+                });
+                Box::new(it)
+            }
+            (NestedIntervalTree::Leaf(v), None) => Box::new(Some(v).into_iter()),
+            _ => panic!("DeepIntervalTree have a different number of ranges indices."),
+        }
+    }
+    pub fn superrange_multiple<'a: 'b, 'b>(&'a self, ranges: &'b Vec<Vec<Range<usize>>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+        self.superrange_using_iter(ranges.iter().map(|x| x.iter().cloned()))
+    }
+    pub fn subrange_multiple<'a: 'b, 'b>(&'a self, ranges: &'b Vec<Vec<Range<usize>>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+        self.subrange_using_iter(ranges.iter().map(|x| x.iter().cloned()))
+    }
+    pub fn superrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+        self.superrange_using_iter(ranges.into_iter().map(|x| std::iter::once(x)))
+    }
+    pub fn subrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+        self.subrange_using_iter(ranges.into_iter().map(|x| std::iter::once(x)))
+    }
+}
+
+
+pub struct Data {
+    expected: &'static [&'static str],
+    found: NestedIntervalTree<Value>,
+    event: NestedIntervalTree<broadcast::Sender<Value>>,
+    size_limit: usize,
+    exceeded_size_limit: bool,
+}
 
 impl Data {
-    pub fn new(output: Value, indices: &[usize]) -> Self {
-        if indices.len() > 0 {
-            let output: &'static [&'static str] = output.try_into().unwrap();
-            let a = indices.iter().flat_map(|i| if i >= &output.len() { None } else { Some((*i, StrData::<Value>::new(output[*i])))}).collect_vec();
-            Data(a.into())
-        } else {
-            Data(Vec::new().into())
-        }
-    }
-    fn get(&self) -> &mut [(usize, StrData<Value>)] {
-        unsafe{ self.0.as_mut().as_mut_slice() }
-    }
-    #[inline(always)]
-    pub fn update(&self, value: Value) -> Result<(), ()> {
-        if let Value::Str(s) = value {
-            let mut hashset = HashSet::new();
-            for (i, d) in self.get() {
-                if s[*i].len() > 1 || s[*i].len() > 0 && s.windows(2).all(|w| w[0] == w[1]) {
-                    d.add_to(s[*i], value, &mut hashset);
-                }
-            }
-            if hashset.len() > 0 {
-                for c in hashset {
-                    c.get().send(value)?;
-                }
-            }
-        }
-        Ok(())
-    }
-    #[inline]
-    pub fn listen_at(&self, v: Value) -> Channel<Value> {
-        let v: &[&str] = v.try_into().unwrap();
-        let chan = Channel::new();
-        for (i, data) in self.get().iter_mut() {
-            let start = if v[*i] == data.expected { 0 } else { data.expected.match_indices(v[*i]).next().unwrap().0 };
-            if v[*i].len() > 0 {
-                data.listen_at(start..(start + v[*i].len()), chan.clone());
-            }
-        }
-        chan
-    }
-    #[inline]
-    pub fn lookup_existing(&self, v: Value) -> impl Iterator<Item = &Value> + '_ {
-        let v: &[&str] = v.try_into().unwrap();
-        self.get().iter().flat_map(|(i, data)| {
-            if v[*i].len() == 0 { return None; }
-            let (start, _) = data.expected.match_indices(v[*i]).next().unwrap();
-            Some(data.all_subrange(start..(start + v[*i].len())))
-        }).flatten()
-    }
-    #[inline]
-    pub fn generate_task(&'static self, v: Value, mut f: impl FnMut(Value) -> Option<&'static Expr> + 'static) -> TaskORc<&'static Expr> {
-        let t = task::spawn(async move {
-            for a in self.lookup_existing(v) {
-                if let Some(a) = f(*a) { return a; }
-            }
-            
-            let chan = self.listen_at(v);
-            loop {
-                let a = chan.await;
-                if let Some(a) = f(a) { return a; }
-            }
-        });
-        t.tasko()
-    }
-    #[inline]
-    pub async fn try_at<T>(&'static self, v: Value, mut f: impl FnMut(Value) -> Option<T> + 'static) -> T {
-        for a in self.lookup_existing(v) {
-            if let Some(a) = f(*a) { return a; }
-        }
-            
-        let chan = self.listen_at(v);
-        loop {
-            let a = chan.await;
-            if let Some(a) = f(a) { return a; }
-        }
+    pub fn new(expected: Value, size_limit: usize) -> Option<UnsafeCell<Self>> {
+        if let Value::Str(e) = expected {
+            Some(Self {
+                expected: e,
+                found: NestedIntervalTree::new(),
+                event: NestedIntervalTree::new(),
+                size_limit,
+                exceeded_size_limit: false,
+            }.into())
+        } else { None }
     }
     
-}
+    pub fn to_ranges(&self, value: Value) -> Option<Vec<Vec<Range<usize>>>> {
+        if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
+            assert!(v.len() == self.expected.len());
+            let mut result = Vec::with_capacity(v.len());
+            for (&e, &x) in self.expected.iter().zip(v.iter()) {
+                if x.len() == 0 { return None; }
+                let r = e.match_indices(x).map(|(i, _)| i..(i+x.len())).collect_vec();
+                if r.len() == 0 { return None; }
+                result.push(r)
+            };
+            Some(result)
+        } else { None }
+    }
+    pub fn to_range(&self, value: Value) -> Option<Vec<Range<usize>>> {
+        if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
+            assert!(v.len() == self.expected.len());
+            let mut result = Vec::with_capacity(v.len());
+            for (&e, &x) in self.expected.iter().zip(v.iter()) {
+                if x.len() == 0 { return None; }
+                if let Some((i, _)) = e.match_indices(x).next() {
+                    result.push(i..(i+x.len()))
+                } else { return None; }
+            };
+            Some(result)
+        } else { None }
+    }
+    
+    pub fn update(&mut self, value: Value, exec: &'static Executor) {
+        if exec.size() > self.size_limit  { return; }
 
+        if let Some(ranges) = self.to_ranges(value) {
+            let _ = self.found.insert_multiple(&ranges, value);
+
+            for sd in self.event.superrange_multiple(&ranges) {
+                sd.send(value);
+            }
+        }
+    }
+
+    pub fn lookup_existing(&self, value: Value) -> impl Iterator<Item=Value> + '_ {
+        self.to_range(value).into_iter().flat_map(|x| self.found.subrange(x).cloned())
+    }
+    
+    pub fn listen(&mut self, value: Value) -> broadcast::Reciever<Value> {
+        let ranges = self.to_range(value).unwrap();
+        if let Some(a) = self.event.get(&ranges) {
+            a.reciever()
+        } else {
+            let sd = broadcast::channel();
+            let rv = sd.reciever();
+            self.event.insert(&ranges, sd);
+            rv
+        }
+    }
+
+}
 
 

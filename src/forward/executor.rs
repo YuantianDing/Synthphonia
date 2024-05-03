@@ -3,7 +3,9 @@ use std::{
 };
 
 use derive_more::{Constructor, Deref, From, Into};
+use futures::StreamExt;
 use itertools::Itertools;
+use rc_async::{sync::broadcast, task::{self, JoinHandle}};
 
 use crate::{
     backward::{ Deducer, DeducerEnum, Problem}, debg, debg2, expr::{
@@ -11,42 +13,36 @@ use crate::{
     }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, solutions::CONDITIONS, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Value}, warn
 };
 use crate::expr;
-use super::{
-    data::{self, all_eq, size::EV, Data}, future::{channel::Channel, eventbus::EventBusRc, task::{self, top_task_ready}, taskrc::{TaskORc, TaskRc, TaskTRc}}
-};
+use super::data::{self, all_eq, size::EV, Data};
 
 pub trait EnumFn = FnMut(Expr, Value) -> Result<(), ()>;
 
 pub struct TaskWaitingCost {
-    current_max_cost: usize,
-    channels: Vec<Channel<()>>
+    sender: broadcast::Sender<()>
 }
 
 impl TaskWaitingCost {
     pub fn new() -> Self {
-        TaskWaitingCost { current_max_cost: 0, channels: Vec::new() }    
+        TaskWaitingCost { sender: broadcast::channel() }
     }
     
     pub async fn inc_cost(&mut self, problem: &mut Problem, amount: usize) -> () {
-        problem.used_cost += amount;
-        if problem.used_cost > self.current_max_cost {
-            while problem.used_cost >= self.channels.len() {
-                self.channels.push(Channel::new())
-            }
-            self.channels[problem.used_cost].await
+        let mut rv = self.sender.reciever();
+        for _ in 0..amount {
+            let _ = rv.next().await;
         }
     }
+
     pub fn release_cost_limit(&mut self, count: usize) -> () {
-        self.current_max_cost += count;
-        if self.current_max_cost < self.channels.len() {
-            let _ = self.channels[self.current_max_cost].get().send(());
+        for _ in 0..count {
+            self.sender.send(());
         }
     }
 }
 
 pub struct OtherData {
     pub all_str_const: HashSet<&'static str>,
-    pub problems: UnsafeCell<HashMap<(usize, Value), TaskORc<&'static Expr>>>,
+    // pub problems: UnsafeCell<HashMap<(usize, Value), TaskORc<&'static Expr>>>,
 }
 
 pub struct Executor {
@@ -60,6 +56,7 @@ pub struct Executor {
     pub data: Vec<Data>,
     pub other: OtherData,
     pub waiting_tasks: UnsafeCell<TaskWaitingCost>,
+    pub top_task: UnsafeCell<JoinHandle<&'static Expr>>,
     expr_collector: UnsafeCell<Vec<EV>>,
 }
 
@@ -67,15 +64,18 @@ impl Executor {
     pub fn problem_count(&self) -> usize{
         self.subproblem_count.get()
     }
-    pub fn new(ctx: Context, cfg: Cfg) -> Self {
+    pub fn new(ctx: Context, cfg: Cfg) -> &'static Self {
         let all_str_const = cfg[0].rules.iter().flat_map(|x| if let ProdRule::Const(ConstValue::Str(s)) = x { Some(*s) } else { None }).collect();
         let data = Data::new(&cfg, &ctx);
         let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i)).collect_vec();
-        let other = OtherData { all_str_const, problems: UnsafeCell::new(HashMap::new()) };
+        let other = OtherData { all_str_const };
         let exec = Self { counter: 0.into(), subproblem_count: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(),
-            cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into() };
+            cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into(), top_task: task::spawn(futures::future::pending()).into() };
         TextObjData::build_trie(&exec);
-        exec
+        exec.galloc()
+    }
+    pub fn top_task(&self) -> &mut JoinHandle<&'static Expr> {
+        unsafe { self.top_task.as_mut() }
     }
     pub fn collect_expr(&self, e: &'static Expr, v: Value) {
         unsafe { self.expr_collector.as_mut().push((e, v)) }
@@ -94,7 +94,8 @@ impl Executor {
         if let Some(e) = self.data[problem.nt].all_eq.at(problem.value) {
             return e;
         }
-        self.spawn_task(problem).await
+        self.subproblem_count.update(|x| x+1);
+        task::spawn(self.deducers[problem.nt].deduce(self, problem)).await
     }
     #[inline]
     pub async fn generate_condition(&'static self, problem: Problem, result: &'static Expr) -> &'static Expr {
@@ -109,9 +110,14 @@ impl Executor {
                 expr!(Ite {c} "" {result}).galloc(),
         }
     }
-    pub fn spawn_task(&'static self, problem: Problem) -> TaskORc<&'static Expr> {
+    pub fn solve_top_blocked(&'static self, problem: Problem) -> &'static Expr {
         self.subproblem_count.update(|x| x+1);
-        task::spawn(self.deducers[problem.nt].deduce(self, problem)).tasko()
+        *self.top_task() = task::spawn(self.deducers[problem.nt].deduce(self, problem));
+        let _ = self.run();
+        
+        if let Poll::Ready(r) = self.top_task().poll_rc_nocx() {
+            r
+        } else { panic!("should not reach here.") }
         // match problems.entry((nt, value)) {
         //     Entry::Occupied(o) => o.get().clone(),
         //     Entry::Vacant(e) => {
@@ -142,7 +148,7 @@ impl Executor {
                 self.collect_condition(e, v);
             }
         }
-        if top_task_ready() {
+        if self.top_task().is_ready() {
             return Err(());
         }
         Ok(())
@@ -184,15 +190,15 @@ impl Executor {
     //         }
     //     }
     // }
-    pub fn block_on<T>(&'static self, t: TaskORc<T>) -> Option<T> {
-        task::with_top_task(t.clone().task(), || {
-            let _ = self.run();
-        });
-        match t.poll_unpin() {
-            Poll::Ready(res) => Some(res),
-            Poll::Pending => None,
-        }
-    }
+    // pub fn block_on<T>(&'static self, t: TaskORc<T>) -> Option<T> {
+    //     task::with_top_task(t.clone().task(), || {
+    //         let _ = self.run();
+    //     });
+    //     match t.poll_unpin() {
+    //         Poll::Ready(res) => Some(res),
+    //         Poll::Pending => None,
+    //     }
+    // }
     // pub fn run_with(&'static self, p: Problem) -> Option<&'static Expr> {
     //     let t = self.get_problem(p);
     //     task::with_top_task(t.task(), || {

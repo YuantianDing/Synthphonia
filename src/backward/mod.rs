@@ -1,15 +1,16 @@
 use std::{cmp::{max, min}, future::Future};
 
-use crate::{debg, expr::{cfg::{Cfg, NonTerminal, ProdRule}, context::Context, Expr}, forward::{executor::Executor, future::taskrc::{TaskRc, TaskTRc, TaskORc}, future::task::{self, currect_task_id}}, info, parser::problem, utils::select_all, value::Value};
+use crate::{debg, expr::{cfg::{Cfg, NonTerminal, ProdRule}, context::Context, Expr}, forward::executor::Executor, info, parser::problem, utils::select_all, value::Value};
 
 
 use futures::{future::Either, select, FutureExt};
 use itertools::Itertools;
 
-use self::{simple::SimpleDeducer, str::{StrDeducer}};
+use self::{liststr::ListDeducer, simple::SimpleDeducer, str::StrDeducer};
 use derive_more::DebugCustom;
 pub mod str;
 pub mod simple;
+pub mod liststr;
 
 use derive_more::Constructor;
 #[derive(Constructor, Clone, Debug, Copy)]
@@ -36,7 +37,6 @@ impl Problem {
         self.used_cost += 1;
         self
     }
-
 }
 
 pub trait Deducer {
@@ -49,6 +49,8 @@ pub enum DeducerEnum {
     Str(StrDeducer),
     #[debug(fmt = "{:?}", _0)]
     Simple(SimpleDeducer),
+    #[debug(fmt = "{:?}", _0)]
+    List(ListDeducer),
 }
 
 impl DeducerEnum {
@@ -63,23 +65,34 @@ impl DeducerEnum {
                     if n1 == n2 && n1 == nt {
                         result.split_once = (ctx.len() / 3, 5);
                         if let Some(ProdRule::Op3(_, n1, n2, n3)) = cfg[nt].get_op3("ite") {
-                            if n3 == n2 && n2 == nt {
+                            if n3 == n2 && n2 == nt{
                                 result.ite_concat = (ctx.len(), n1)
                             }
                         }
                     }
                 }
-                if let Some(ProdRule::Op2(_, n1, n2)) = cfg[nt].get_op2("list.join") {
-                    if n2 == nt {
-                        result.join = (min(ctx.len(), max(5, ctx.len() / 10)), n1)
-                    }
+                if let Some(ProdRule::Op2(_, n1, n2)) = cfg[nt].get_op2("str.join") {
+                    if n2 == nt && cfg[n1].get_op1("list.map").is_some() {
+                        result.join = (2, n1)
+                    } 
                 }
                 result.decay_rate = cfg[nt].config.get_usize("str.decay_rate").unwrap_or(900);
                 result.formatter.append(&mut cfg[nt].get_all_formatter());
                 info!("Deduction: {result:?}");
                 Self::Str(result)
             }
-            crate::value::Type::ListStr => Self::Simple(SimpleDeducer{ nt }),
+            crate::value::Type::ListStr => {
+                let mut result = ListDeducer { nt, map: None};
+                if cfg[nt].get_op1("list.map").is_some() {
+                    let mut cfg2 = cfg.clone();
+                    for nt in cfg2.iter_mut() {
+                        nt.rules.retain(|x| !matches!(x, ProdRule::Var(a) if *a > 0))
+                    }
+                    info!("Map Cfg {:?}", cfg2);
+                    result.map = Some(cfg2);
+                }
+                Self::List(result)
+            }
             _ => Self::Simple(SimpleDeducer{ nt }),
         }
     }
@@ -87,11 +100,16 @@ impl DeducerEnum {
 
 impl Deducer for DeducerEnum {
     async fn deduce(&'static self, exec: &'static Executor, problem: Problem) -> &'static Expr {
+        let is_pending = exec.data[problem.nt].all_eq.is_pending(problem.value);
+        if is_pending { return exec.data[problem.nt].all_eq.acquire(problem.value).await; }
+
         let result = match self {
             DeducerEnum::Str(a) => a.deduce(exec, problem).await,
             DeducerEnum::Simple(a) => a.deduce(exec, problem).await,
+            DeducerEnum::List(a) => a.deduce(exec, problem).await,
         };
-        debg!("TASK#{} finished", currect_task_id());
+        debg!("Subproblem {:?} solved", problem.value);
+        exec.data[problem.nt].add_ev(result, problem.value);
         result
     }
 }

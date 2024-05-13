@@ -7,7 +7,7 @@ use itertools::Itertools;
 use mapped_futures::mapped_futures::MappedFutures;
 use rand::Rng;
 use rand::seq::SliceRandom;
-use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr}, forward::executor::Executor, galloc::AllocForAny, info, never, tree_learning::{bits::BoxSliceExt, tree_learning, Bits}};
+use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr, Expression}, forward::executor::Executor, galloc::{self, AllocForAny}, info, never, tree_learning::{bits::BoxSliceExt, tree_learning, Bits}};
 
 
 
@@ -24,7 +24,7 @@ pub struct Solutions {
     ctx: Context,
     solutions: Vec<(&'static Expr, Bits)>,
     solved_examples: Bits,
-    pub threads: MappedFutures<Vec<usize>, JoinHandle<&'static Expr>>,
+    pub threads: MappedFutures<Vec<usize>, JoinHandle<Expression>>,
     start_time: Instant,
 }
 
@@ -74,7 +74,9 @@ impl Solutions {
     }
     pub fn learn_tree(&self, ite_limit_rate: usize) -> Option<&'static Expr> {
         let duration = time::Instant::now() - self.start_time;
-        let ite_limit = duration.as_millis() as usize / ite_limit_rate + 1;
+        let ite_limit = if duration.as_secs() as usize >= self.cfg.config.ite_limit_giveup {
+            self.cfg.config.ite_limit_giveup * 1000 / ite_limit_rate + (duration.as_millis() as usize - self.cfg.config.ite_limit_giveup * 1000) * 5 / ite_limit_rate + 1
+        } else { duration.as_millis() as usize / ite_limit_rate + 1};
         let conditions = CONDITIONS.lock();
         debg!("Conditions: {}", conditions.len());
         if conditions.len() == 0 { return None; }
@@ -124,7 +126,7 @@ impl Solutions {
             select! {
                 result = self.threads.next() => {
                     let (k,v) = result.unwrap();
-                    let v = v.expect("Thread Execution Error");
+                    let v = v.expect("Thread Execution Error").alloc_local();
                     info!("Found a solution {:?} with examples {:?}.", v, k);
                     if let Some(e) = self.add_new_solution(v) {
                         return e;
@@ -139,19 +141,26 @@ impl Solutions {
     }
 }
 
-pub fn new_thread(cfg: Cfg, ctx: Context) -> JoinHandle<&'static Expr> {
+pub fn new_thread(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
     tokio::spawn(async move {
-        let exec = Executor::new(ctx, cfg).galloc();
+        let exec = Executor::new(ctx, cfg);
         info!("Deduction Configuration: {:?}", exec.deducers);
-        exec.block_on(exec.spawn_task(Problem::root(0, exec.ctx.output))).expect("Failure")
+        let result = exec.solve_top_blocked().to_expression();
+        result
     })
 }
 
-pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> JoinHandle<&'static Expr> {
+pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
     cfg.config.cond_search = true;
+    new_thread(cfg, ctx)
+}
+
+pub fn new_thread_with_size_limit(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
+    // eprintln!("Creating new thread {:?}", ctx.output);
     tokio::spawn(async move {
-        let exec = Executor::new(ctx, cfg).galloc();
-        info!("Deduction Configuration: {:?}", exec.deducers);
-        exec.block_on(exec.spawn_task(Problem::root(0, exec.ctx.output))).expect("Failure")
+        if let Some(p) = (move || {
+            let result = Executor::new(ctx, cfg).solve_top_size_limit().map(|e| e.to_expression());
+            result
+        })() { p } else { never!() }
     })
 }

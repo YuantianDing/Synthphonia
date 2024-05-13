@@ -11,9 +11,11 @@ thread_local! {
 
 #[extension(pub trait AllocForAny)]
 impl<T> T {
+    #[inline(always)]
     fn galloc(self) -> &'static T {
         alloc(self)
     }
+    #[inline(always)]
     fn galloc_mut(self) -> &'static T {
         alloc_mut(self)
     }
@@ -21,6 +23,7 @@ impl<T> T {
 
 #[extension(pub trait AllocForExactSizeIter)]
 impl<T: ExactSizeIterator> T {
+    #[inline(always)]
     fn galloc_scollect(self) -> &'static [T::Item] {
         alloc_iter(self)
     }
@@ -28,6 +31,7 @@ impl<T: ExactSizeIterator> T {
 
 #[extension(pub trait TryAllocForExactSizeIter)]
 impl<T: ExactSizeIterator<Item=Option<F>>, F> T {
+    #[inline(always)]
     fn galloc_try_scollect(self) -> Option<&'static [F]> {
         try_alloc_iter(self)
     }
@@ -35,6 +39,7 @@ impl<T: ExactSizeIterator<Item=Option<F>>, F> T {
 
 #[extension(pub trait AllocForIter)]
 impl<T: Iterator> T {
+    #[inline(always)]
     fn galloc_collect(self) -> &'static [T::Item] {
         alloc_iter2(self)
     }
@@ -43,14 +48,17 @@ impl<T: Iterator> T {
 
 #[extension(pub trait AllocForStr)]
 impl str {
+    #[inline(always)]
     fn galloc_owned_str(&self) -> BString<'static> {
         as_owned(self)
     }
+    #[inline(always)]
     fn galloc_str(&self) -> &'static str {
         alloc_str(self)
     }
 }
 
+#[inline(always)]
 fn alloc<T>(t: T) -> &'static T {
     THR_ARENA.with(|arena| {
         let p = arena.alloc(t) as *mut T;
@@ -58,6 +66,7 @@ fn alloc<T>(t: T) -> &'static T {
     })
 }
 
+#[inline(always)]
 fn alloc_mut<T>(t: T) -> &'static mut T {
     THR_ARENA.with(|arena| {
         let p = arena.alloc(t) as *mut T;
@@ -65,6 +74,7 @@ fn alloc_mut<T>(t: T) -> &'static mut T {
     })
 }
 
+#[inline(always)]
 fn alloc_iter<T>(iter: impl ExactSizeIterator<Item= T>) -> &'static [T] {
     THR_ARENA.with(|arena| {
         let p = arena.alloc_slice_fill_iter(iter) as *mut [T];
@@ -72,6 +82,7 @@ fn alloc_iter<T>(iter: impl ExactSizeIterator<Item= T>) -> &'static [T] {
     })
 }
 
+#[inline(always)]
 fn try_alloc_iter<T>(iter: impl ExactSizeIterator<Item= Option<T>>) -> Option<&'static [T]> {
     THR_ARENA.with(|arena| {
         let p = arena as *const Bump;
@@ -80,6 +91,7 @@ fn try_alloc_iter<T>(iter: impl ExactSizeIterator<Item= Option<T>>) -> Option<&'
     })
 }
 
+#[inline(always)]
 fn alloc_iter2<T>(iter: impl Iterator<Item= T>) -> &'static [T] {
     THR_ARENA.with(|arena| {
         let p = arena as *const Bump;
@@ -87,6 +99,7 @@ fn alloc_iter2<T>(iter: impl Iterator<Item= T>) -> &'static [T] {
         vec.into_bump_slice()
     })
 }
+#[inline(always)]
 pub fn new_bvec<T>(cap: usize) -> BVec<'static, T> {
     THR_ARENA.with(|arena| {
         let p = arena as *const Bump;
@@ -94,6 +107,7 @@ pub fn new_bvec<T>(cap: usize) -> BVec<'static, T> {
     })
 }
 
+#[inline(always)]
 fn alloc_str(s: &str) -> &'static str {
     THR_ARENA.with(|arena| {
         let p = arena.alloc_str(s) as *mut str;
@@ -101,6 +115,7 @@ fn alloc_str(s: &str) -> &'static str {
     })
 }
 
+#[inline(always)]
 fn as_owned(s: &str) -> BString<'static> {
     THR_ARENA.with(|arena| {
         let p = arena as *const Bump;

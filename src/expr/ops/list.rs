@@ -85,9 +85,5 @@ new_op2!(Filter, "list.filter",
     (ListStr, Bool) -> Int { |s| panic!("Could not execuate Filter") }
 );
 
-new_op2!(Map, "list.map",
-    (ListStr, Str) -> ListStr { |s| panic!("Could not execuate Filter") },
-    (ListStr, Str) -> Str { |s| panic!("Could not execuate Filter") },
-    (Str, Str) -> ListStr { |s| panic!("Could not execuate Filter") },
-    (Str, Str) -> Str { |s| panic!("Could not execuate Filter") }
-);
+pub mod map;
+pub use map::Map;

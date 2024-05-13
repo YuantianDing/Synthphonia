@@ -3,9 +3,9 @@ use std::collections::{HashMap, BTreeMap};
 use itertools::Itertools;
 use pest::iterators::Pair;
 
-use crate::{galloc::AllocForCharIter, parser::problem::new_custom_error_span, value::{Value, ConstValue}};
+use crate::{expr::Expr, galloc::AllocForCharIter, parser::problem::new_custom_error_span, value::{ConstValue, Value}};
 
-use super::problem::{Rule, Error};
+use super::problem::{Error, FunSig, Rule};
 use derive_more::{From, DebugCustom};
 
 #[derive(From, Clone, PartialEq, Eq, Hash, Default)]
@@ -23,6 +23,7 @@ impl Config {
             match v.as_rule() {
                 Rule::value => Ok((sym.as_str().into(), ConstValue::parse(v)?)),
                 Rule::symbol => Ok((sym.as_str().into(), ConstValue::Str(v.as_str().chars().galloc_collect_str()))),
+                Rule::expr => Ok((sym.as_str().into(), ConstValue::Expr(Expr::parse(v, None).unwrap()))),
                 _ => panic!(),
             }
         }).collect();
@@ -39,6 +40,9 @@ impl Config {
     }
     pub fn get_bool(&self, name: &str) -> Option<bool> {
         self.0.get(name).and_then(|x| x.as_bool())
+    }
+    pub fn get_expr(&self, name: &str) -> Option<&'static Expr> {
+        self.0.get(name).and_then(|x| x.as_expr())
     }
     pub fn merge(&mut self, other: Self) {
         self.0.extend(other.0);

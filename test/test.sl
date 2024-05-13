@@ -3,7 +3,7 @@
 (synth-fun f ((name String)) String
     (
       (Start String (ntString))
-      (ntString String (" " "," "-" name
+      (ntString String (" " name
             (str.++ ntString ntString) 
             (str.head ntString ntFloat #cost:4)
             (str.tail ntString ntFloat #cost:4)

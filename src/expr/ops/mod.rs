@@ -76,6 +76,7 @@ pub enum Op1Enum {
     RetainN,
     RetainL,
     RetainLN,
+    Map,
     Uppercase,
     Lowercase,
     AsMonth,
@@ -149,7 +150,7 @@ impl Op1Enum {
 }
 
 #[enum_dispatch(Op2)]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Op2Enum {
     Concat,
     Eq,
@@ -165,7 +166,6 @@ pub enum Op2Enum {
     Head,
     Tail,
     Filter,
-    Map,
     TimeFloor,
     TimeAdd,
     Floor, Round, Ceil,
@@ -216,7 +216,7 @@ impl Op2Enum {
 }
 
 #[enum_dispatch(Op3)]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Op3Enum {
     Replace,
     Ite,

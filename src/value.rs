@@ -4,6 +4,7 @@ use derive_more::TryInto;
 use derive_more::From;
 use itertools::Itertools;
 
+use crate::expr::Expr;
 use crate::galloc::AllocForExactSizeIter;
 use crate::galloc::AllocForIter;
 use crate::tree_learning::bits::BoxSliceExt;
@@ -124,6 +125,15 @@ impl Value {
             _ => panic!("Mismatched type: to_liststr_leak")
         }
     }
+    #[inline(always)]
+    pub fn try_flatten_leak(&self) -> Option<&'static [&'static str]> {
+        // Memory Leak !!!
+        match self {
+            Value::Str(s) => Some(s.iter().flat_map(|x| (0..x.len()).map(|i| &x[i..i+1]) ).galloc_collect()),
+            Value::ListStr(l) => Some(l.iter().flat_map(|x| x.iter().map(|p| *p)).galloc_collect()),
+            _ => None,
+        }
+    }
 
     pub fn from_const(ty: Type, constants: impl ExactSizeIterator<Item=ConstValue>) -> Self {
         match ty {
@@ -147,6 +157,9 @@ impl Value {
         }
     }
     pub fn to_str(self) -> &'static [&'static str] {
+        self.try_into().unwrap()
+    }
+    pub fn to_liststr(self) -> &'static [&'static [&'static str]] {
         self.try_into().unwrap()
     }
     pub fn to_bool(self) -> &'static [bool] {
@@ -215,7 +228,10 @@ pub enum ConstValue {
     Str(&'static str),
     #[debug(fmt = "{:?}", _0)]
     #[display(fmt = "{:?}", _0)]
-    Float(F64)
+    Float(F64),
+    #[debug(fmt = "{:?}", _0)]
+    #[display(fmt = "{:?}", _0)]
+    Expr(&'static Expr)
 }
 
 impl From<usize> for ConstValue {
@@ -237,6 +253,7 @@ impl ConstValue {
             Self::Str(_) => Type::Str,
             Self::Float(_) => Type::Float,
             Self::Null => Type::Null,
+            Self::Expr(_) => Type::Null,
         }
     }
     #[inline(always)]
@@ -246,6 +263,7 @@ impl ConstValue {
     pub fn as_usize(&self) -> Option<usize> { if let Self::Int(b) = self { Some(*b as usize) } else { None }}
     pub fn as_str(&self) -> Option<&'static str> { if let Self::Str(b) = self { Some(*b) } else { None }}
     pub fn as_float(&self) -> Option<F64> { if let Self::Float(b) = self { Some(*b) } else { None }}
+    pub fn as_expr(&self) -> Option<&'static Expr> { if let Self::Expr(b) = self { Some(*b) } else { None }}
     pub fn as_f64(&self) -> Option<f64> { if let Self::Float(b) = self { Some(**b) } else { None }}
     pub fn is_null(&self) -> bool { matches!(self, Self::Null) }
     pub fn value(&self, len: usize) -> Value {
@@ -255,6 +273,7 @@ impl ConstValue {
             ConstValue::Str(t) => Value::Str((0..len).map(|_| *t).galloc_scollect()),
             ConstValue::Float(f) => Value::Float((0..len).map(|_| *f).galloc_scollect()),
             ConstValue::Null => panic!("Unable to convert Null to Value"),
+            ConstValue::Expr(_) => panic!("Unable to convert Expr to Value"),
         }
     }
 
@@ -267,6 +286,7 @@ pub fn consts_to_value(consts: Vec<ConstValue>) -> Value {
         ConstValue::Int(_) => Value::Int(consts.into_iter().map(|a| a.as_i64().unwrap()).galloc_scollect()),
         ConstValue::Str(_) => Value::Str(consts.into_iter().map(|a| a.as_str().unwrap()).galloc_scollect()),
         ConstValue::Float(_) => Value::Float(consts.into_iter().map(|a| a.as_float().unwrap()).galloc_scollect()),
+        ConstValue::Expr(_) => todo!(),
     }
 }
 

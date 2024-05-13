@@ -10,7 +10,7 @@ pub mod ops;
 use derive_more::DebugCustom;
 
 use self::{context::Context, ops::{Op1, Op1Enum, Op2, Op2Enum, Op3, Op3Enum}};
-#[derive(DebugCustom, PartialEq, Eq, Clone)]
+#[derive(DebugCustom, PartialEq, Eq, Clone, Hash)]
 pub enum Expr {
     #[debug(fmt = "{:?}", _0)]
     Const(ConstValue),
@@ -67,6 +67,41 @@ impl Expr {
     }
     pub fn ite(&'static self, t: &'static Expr, f: &'static Expr) -> &'static Expr {
         crate::expr!(Ite {self} {t} {f}).galloc()
+    }
+    pub fn to_expression(&self) -> Expression {
+        match self {
+            Expr::Const(c) => Expression::Const(c.clone()),
+            Expr::Var(v) => Expression::Var(*v),
+            Expr::Op1(op, a1) => Expression::Op1((*op).clone(), a1.to_expression().into()),
+            Expr::Op2(op, a1, a2) => Expression::Op2((*op).clone(), a1.to_expression().into(), a2.to_expression().into()),
+            Expr::Op3(op, a1, a2, a3) => Expression::Op3((*op).clone(), a1.to_expression().into(), a2.to_expression().into(), a3.to_expression().into()),
+        }
+    }
+}
+
+#[derive(DebugCustom, PartialEq, Eq, Clone, Hash)]
+pub enum Expression {
+    #[debug(fmt = "{:?}", _0)]
+    Const(ConstValue),
+    #[debug(fmt = "<{:?}>", _0)]
+    Var(i64),
+    #[debug(fmt = "({} {:?})", _0, _1)]
+    Op1(Op1Enum, Box<Expression>),
+    #[debug(fmt = "({} {:?} {:?})", _0, _1, _2)]
+    Op2(Op2Enum, Box<Expression>, Box<Expression>),
+    #[debug(fmt = "({} {:?} {:?} {:?})", _0, _1, _2, _3)]
+    Op3(Op3Enum, Box<Expression>, Box<Expression>, Box<Expression>),
+}
+
+impl Expression {
+    pub fn alloc_local(self) -> &'static Expr {
+        match self {
+            Expression::Const(a) => Expr::Const(a).galloc(),
+            Expression::Var(v) => Expr::Var(v).galloc(),
+            Expression::Op1(op1, a1) => Expr::Op1(op1.galloc(), a1.alloc_local()).galloc(),
+            Expression::Op2(op1, a1, a2) => Expr::Op2(op1.galloc(), a1.alloc_local(), a2.alloc_local()).galloc(),
+            Expression::Op3(op1, a1, a2, a3) => Expr::Op3(op1.galloc(), a1.alloc_local(), a2.alloc_local(), a3.alloc_local()).galloc(),
+        }
     }
 }
 

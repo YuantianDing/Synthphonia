@@ -1,25 +1,27 @@
-use std::{cell::{RefCell, UnsafeCell}, cmp::{max, min}, collections::{HashMap, HashSet}, pin::{pin, Pin}, rc::Rc, task::{Context, Poll, Waker}};
+use std::{cell::{RefCell, UnsafeCell}, cmp::{max, min}, collections::{HashMap, HashSet}, pin::{pin, Pin}, rc::Rc, sync::Arc, task::{Poll, Waker}};
 
 use bumpalo::collections::CollectIn;
+use figment::util::diff_paths;
 use futures::{future::select, FutureExt};
 use futures_core::Future;
 use itertools::Itertools;
+use rc_async::task::{self, JoinHandle};
 
-use crate::{async_closure, closure, debg, expr::{ ops::Op1Enum, Expr}, forward::{executor::Executor, future::{task::{self, currect_task_id, number_of_task}, taskrc::TaskORc}}, DEBUG};
-use crate::{galloc::{self, AllocForAny, AllocForExactSizeIter, AllocForIter}, never, text::formatting::Op1EnumToFormattingOp, utils::{pending_if, select_all, select_ret, select_ret3, select_ret4, UnsafeCellExt}, value::Value};
+use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::executor::Executor, info, text::formatting::Op1EnumToFormattingOp, utils::select_ret5, DEBUG};
+use crate::{galloc::{self, AllocForAny, AllocForExactSizeIter, AllocForIter}, never, utils::{pending_if, select_all, select_ret, select_ret3, select_ret4, UnsafeCellExt}, value::Value};
 
 use crate::expr;
 use super::{Deducer, Problem};
 
-struct FutureRcVec<F: Future<Output=T>, T>(Rc<UnsafeCell<Vec<F>>>);
+pub struct HandleRcVec<T: Unpin>(Arc<UnsafeCell<Vec<JoinHandle<T>>>>);
 
-impl<F: Future<Output=T>, T> Clone for FutureRcVec<F, T> {
+impl<T: Unpin> Clone for HandleRcVec<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<F: Future<Output=T> + Unpin, T> Future for FutureRcVec<F, T> {
+impl<T: Unpin> Future for HandleRcVec<T> {
     type Output=T;
 
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
@@ -32,12 +34,14 @@ impl<F: Future<Output=T> + Unpin, T> Future for FutureRcVec<F, T> {
     }
 }
 
-impl<F: Future<Output=T>, T> FutureRcVec<F, T> {
+impl<T: Unpin> HandleRcVec<T> {
     pub fn new() -> Self {
-        Self(Rc::new(UnsafeCell::new(Vec::new())))
+        Self(Arc::new(UnsafeCell::new(Vec::new())))
     }
-    pub fn extend(&self, mut v: Vec<F>) {
-        let _ = unsafe{self.0.as_mut()}.append(&mut v);
+    pub fn extend_iter(&self, v: impl Iterator<Item=JoinHandle<T>>) {
+        for f in v {
+            unsafe{self.0.as_mut()}.push(f);
+        }
     }
     pub fn len(&self) -> usize {
         unsafe { self.0.as_mut().len() }
@@ -56,40 +60,56 @@ pub struct StrDeducer {
 
 impl StrDeducer {
     pub fn new(nt: usize) -> Self {
-        Self { nt: 0, split_once: (usize::MAX, 0), join: (usize::MAX, 0), ite_concat: (usize::MAX, usize::MAX), formatter: Vec::new(), decay_rate: usize::MAX }
+        Self { nt, split_once: (usize::MAX, 0), join: (usize::MAX, 0), ite_concat: (usize::MAX, usize::MAX), formatter: Vec::new(), decay_rate: usize::MAX }
     }
 }
 
 impl Deducer for StrDeducer {
-    async fn deduce(&'static self, exec: &'static Executor, mut problem: Problem) -> &'static crate::expr::Expr {
+    async fn deduce(&'static self, exec: &'static Executor, prob: Problem) -> &'static crate::expr::Expr {
+        assert!(self.nt == prob.nt);
         let this = self;
-        let (is_first, task) = exec.data[self.nt].all_eq.acquire_is_first(problem.value);
-        debg!("TASK#{} Deducing subproblem: {} {:?} {}", currect_task_id(), exec.cfg[self.nt].name, problem.value, is_first);
-        if !is_first {
-            return task.await;
-        }
-        let problem2 = problem.clone();
+        let mut eq = pin!(exec.data[self.nt].all_eq.acquire(prob.value));
+        debg!("Deducing subproblem: {} {:?}", self.nt, prob.value);
+        if let Poll::Ready(r) = futures::poll!(&mut eq) { return r; }
 
-        let mut delimiterset = HashSet::<Value>::new();
-        let futures = FutureRcVec::new();
-        let inner_func = closure! { clone futures; move |delimiter: Value| {
-            let all_contains = delimiter.to_str().iter().zip(problem.value.to_str().iter()).all(|(a, b)| b.contains(a));
-            if all_contains && delimiterset.insert(delimiter) {
-                futures.extend(this.on_delim(exec, problem, delimiter));
-            }
+        // let mut delimiterset = HashSet::<Vec<&'static str>>::new();
+        let futures = HandleRcVec::new();
+
+        let substr_event = exec.data[self.nt].substr().unwrap().listen_for_each(prob.value, closure! { clone futures, clone prob; move |delimiter: Value| {
+            // let vec = delimiter.to_str().iter().zip(prob.value.to_str().iter()).map(|(a, b)| if b.contains(a) { *a } else { &"" }).collect_vec();
+            // if delimiterset.insert(vec) {
+                futures.extend_iter(this.split1(exec, prob, delimiter).into_iter());
+                futures.extend_iter(this.join(exec, prob, delimiter).into_iter());
+            // }
             None::<&'static Expr>
-        }};
-        let event = async {
-            exec.waiting_tasks().inc_cost(&mut problem, 1).await;
-            exec.data[self.nt].substr.try_at(problem.value,inner_func).await
-        };
-        let iter = self.formatter.iter().map(|x| self.fmt(problem2, x, exec));
+        }});
         
-        let result = select_ret4(task, pin!(event), futures, pin!(select_all(iter))).await;
-        if DEBUG.get() {
-            assert_eq!(result.eval(&exec.ctx), problem.value, "Expression: {:?}", result);
-        }
-        let _ = exec.data[self.nt].all_eq.set_ref(problem.value, result);
+        // let mut prefixset = HashSet::<Vec<&'static str>>::new();
+        let prefix_event = exec.data[self.nt].prefix().unwrap().listen_for_each(prob.value, closure! { clone futures, clone prob; move |prefix: Value| {
+            // let vec = prefix.to_str().iter().zip(prob.value.to_str().iter()).map(|(a, b)| if b.starts_with(a) { *a } else { &"" }).collect_vec();
+            // if prefixset.insert(vec) {
+                futures.extend_iter(this.ite_concat(exec, prob, prefix).into_iter());
+            // }
+            None::<&'static Expr>
+        }});
+        let join_empty_str_cond = self.join.0 < usize::MAX && prob.used_cost <= 8 &&
+            prob.value.to_str().iter().all(|x| x.chars().all(|c| c.is_alphanumeric())) &&
+            prob.value.to_str().iter().any(|x| x.len() > 2);
+            
+        let map_event = pin!(closure! {clone futures; async move {
+            if join_empty_str_cond {
+                let v = exec.data[self.join.1].len().unwrap().listen_once(prob.value).await;
+                futures.extend_iter(this.join_empty_str(exec, prob).into_iter());
+            } 
+            never!(&'static Expr)
+        }});
+        let iter = self.formatter.iter().map(|x| self.fmt(prob.clone(), x, exec));
+
+        let substr_event = pin!(substr_event);
+        let prefix_event = pin!(prefix_event);
+        let events = select_ret3(prefix_event, substr_event, map_event);
+
+        let result = select_ret4(eq, events, futures, pin!(select_all(iter))).await;
         result
     }
 }
@@ -97,64 +117,62 @@ impl Deducer for StrDeducer {
 
 
 impl StrDeducer {
-    #[inline]
-    pub fn on_delim(&'static self, exec: &'static Executor, problem: Problem, delimiter: Value) -> Vec<TaskORc<&'static Expr>> {
-        let v: &[&str] = problem.value.try_into().unwrap();
-        let delimiter: &[&str] = delimiter.try_into().unwrap();
-        let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
-        let start_count: usize = v.iter().zip(delimiter.iter()).map(|(x, y)| if x.starts_with(*y) { y.len() } else {0}).sum();
-        let eq_count: usize = v.iter().zip(delimiter.iter()).map(|(x, y)| if x == y { y.len() } else {0}).sum();
+    // #[inline]
+    // pub fn split1(&'static self, id: usize, prob: Problem, delimiter: &'static Expr, dvalue: Value) -> Option<JoinHandle<&'static Expr>> {
+    //     let v: &[&str] = prob.value.try_into().unwrap();
+    //     let dvalue: &[&str] = dvalue.try_into().unwrap();
+    //     let contain_count: usize = v.iter().zip(dvalue.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
 
 
-        let mut result = Vec::with_capacity(2);
-        if contain_count >= self.split_once_count(exec) && exec.data[self.nt].all_eq.get(delimiter.into()).cost() <= self.split_once.1 && currect_task_id() <= 3000 {
-            result.push(self.split1(problem, delimiter, exec, contain_count));
-        }
-        if start_count >= self.ite_concat_count(exec) || eq_count >= self.ite_concat_eq_count(exec) && self.ite_concat.0 != usize::MAX {
-            result.push(self.ite_concat(problem, delimiter, exec, start_count, eq_count));
-        }
-        result
-    }
+    //     if contain_count >= self.split_once.0 {
+    //         Some(self.split1_task(id, subprob, delimiter, dvalue, contain_count))
+    //     } else { None }
+    // }
     #[inline]
-    fn decay(&self, _exec: &'static Executor, i: usize) -> usize {
+    fn decay(&self, i: usize) -> usize {
         let rate = self.decay_rate;
-        let task = rate + min(100 * rate, number_of_task());
+        let task = rate + min(100 * rate, task::number_of_tasks());
         if i != usize::MAX { (i * task) / rate } else { i }
     }
     #[inline]
-    fn decay2(&self, _exec: &'static Executor, i: usize) -> usize {
+    fn decay2(&self, i: usize) -> usize {
         let rate = self.decay_rate;
-        let task = rate + min(100 * rate, 20 * number_of_task());
+        let task = rate + min(100 * rate, 20 * task::number_of_tasks());
         if i != usize::MAX { (i * task) / rate } else { i }
     }
     #[inline]
     fn split_once_count(&self, exec: &'static Executor) -> usize {
-        min(exec.ctx.len(), self.decay(exec, self.split_once.0))
+        min(exec.ctx.len(), self.decay(self.split_once.0))
     }
     #[inline]
     fn ite_concat_count(&self, exec: &'static Executor) -> usize {
-        self.decay(exec, self.ite_concat.0)
+        self.decay(self.ite_concat.0)
     }
     #[inline]
     fn ite_concat_eq_count(&self, exec: &'static Executor) -> usize {
-        self.decay2(exec, 3)
+        self.decay2(3)
     }
     #[inline]
-    fn split1(&'static self, mut problem: Problem, delimiter: &'static [&'static str], exec: &'static Executor, count: usize) -> TaskORc<&'static Expr> {
-        let v = problem.value.to_str();
-        debg!("TASK#{}/{} StrDeducer::split1 {count} {v:?} {delimiter:?}", currect_task_id(), exec.problem_count());
-        task::spawn( async move {
-            let (a,b, cases) = split_once(v, delimiter);
-            if !cases.is_all_true() && self.ite_concat.1 == usize::MAX { return never!() }
-            exec.waiting_tasks().inc_cost(&mut problem, 2).await;
+    fn split1(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
+        let delimiter = delimiter.to_str();
+        let v = prob.value.to_str();
+        let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
+        if !(contain_count >= self.split_once_count(exec) && prob.used_cost < 15) { return None; }
 
-            let left = exec.solve_task(problem.with_value(a)).await;
-            let right = exec.solve_task(problem.with_value(b)).await;
-            let delim = exec.data[self.nt].all_eq.get(delimiter.into());
+        
+        Some(task::spawn(async move {
+            let (a, b, cases) = split_once(v, delimiter);
+            if !cases.is_all_true() && self.ite_concat.1 == usize::MAX { return never!() }
+            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+
+            debg!("StrDeducer::split1 {v:?} {delimiter:?}");
+
+            let left = exec.solve_task(prob.with_value(a)).await;
+            let right = exec.solve_task(prob.with_value(b)).await;
             
-            let mut result = delim;
+            let mut result = exec.data[prob.nt].all_eq.get(delimiter.into());
             if self.ite_concat.1 != usize::MAX {
-                result = exec.generate_condition(problem.with_nt(self.ite_concat.1, cases), result).await;
+                result = self.generate_condition(exec, prob.with_nt(self.ite_concat.1, cases), result).await;
             }
             if !a.is_all_empty() {
                 result = expr!(Concat {left} {result}).galloc();
@@ -163,41 +181,98 @@ impl StrDeducer {
                 return expr!(Concat {result} {right}).galloc();
             }
             result
-        }).tasko()
+        }))
     }
     #[inline]
-    fn ite_concat(&'static self, mut problem: Problem, delimiter: &'static [&'static str], exec: &'static Executor, count: usize, eq_count: usize) -> TaskORc<&'static Expr> {
-        let v = problem.value.to_str();
-        debg!("TASK#{}/{} StrDeducer::ite_concat {count}/{} {eq_count}/{} {v:?} {delimiter:?}", currect_task_id(), exec.problem_count(), self.ite_concat_count(exec), self.ite_concat_eq_count(exec));
-        task::spawn( async move {
-            let (a, b) = ite_concat_split(v, delimiter);
-            exec.waiting_tasks().inc_cost(&mut problem, 2).await;
+    pub async fn generate_condition(&'static self, exec: &'static Executor, prob: Problem, result: &'static Expr) -> &'static Expr {
+        if prob.value.is_all_true() { return result; }
+        let left = pin!(exec.solve_task(prob.clone()));
+        let right = pin!(exec.solve_task(prob.clone().with_value(prob.value.bool_not())));
+        let cond = futures::future::select(left, right).await;
+        match cond {
+            futures::future::Either::Left((c, _)) => 
+                expr!(Ite {c} {result} "").galloc(),
+            futures::future::Either::Right((c, _)) => 
+                expr!(Ite {c} "" {result}).galloc(),
+        }
+    }
+    #[inline]
+    pub fn ite_concat(&'static self, exec: &'static Executor, mut prob: Problem, prefix: Value) -> Option<JoinHandle<&'static Expr>> {
+        let v: &[&str] = prob.value.to_str();
+        let prefix: &[&str] = prefix.to_str();
+        let start_count: usize = v.iter().zip(prefix.iter()).map(|(x, y)| if x.starts_with(*y) { y.len() } else { 0 }).sum();
+        let eq_count: usize = v.iter().zip(prefix.iter()).map(|(x, y)| if x == y { y.len() } else { 0 }).sum();
 
-            let right = exec.solve_task(problem.with_value(b)).await;
-            let left = exec.data[self.nt].all_eq.get(delimiter.into());
-            let mut result = left;
-            result = exec.generate_condition(problem.with_nt(self.ite_concat.1, a), result).await;
+        if !(start_count >= self.ite_concat_count(exec) || eq_count >= self.ite_concat_eq_count(exec)) { return None; }
+
+        
+        Some(task::spawn(async move {
+            debg!("StrDeducer::ite_concat {} {:?} {:?} {start_count} {eq_count}", prob.nt, v, prefix);
+            let (a, b) = ite_concat_split(v, prefix);
+            
+            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+
+            let right = exec.solve_task(prob.with_value(b)).await;
+            
+            let mut result = exec.data[prob.nt].all_eq.get(prefix.into());
+            result = self.generate_condition(exec, prob.with_nt(self.ite_concat.1, a), result).await;
             if !b.is_all_empty() {
                 result = expr!(Concat {result} {right}).galloc();
             }
             result
-        }).tasko()
+        }))
+    }
+
+    #[inline]
+    fn join(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
+        if prob.used_cost >= 8 { return None; }
+
+        let delimiter = delimiter.to_str();
+        let v = prob.value.to_str();
+        let contain_count: usize = v.iter().zip(delimiter.iter()).map(|(x, y)| x.matches(y).count() + 1).max().unwrap_or(10000);
+        if contain_count < self.join.0 { return None; }
+
+        
+        Some(task::spawn(async move {
+            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+
+            let a = value_split(v, delimiter);
+            debg!("StrDeducer::join {v:?} {delimiter:?}");
+
+            let list = exec.solve_task(prob.with_nt(self.join.1, a)).await;
+            
+            let mut delim = exec.data[prob.nt].all_eq.get(delimiter.into());
+            expr!(Join {list} {delim}).galloc()
+        }))
     }
     #[inline]
-    async fn join(&self, problem: Problem, delimiter: &'static [&'static str], exec: &'static Executor) -> &'static Expr {
-        let v = problem.value.to_str();
-        debg!("TASK#{} StrDeducer::join {v:?} {delimiter:?}", currect_task_id());
-        let a = value_split(v, delimiter);
-        let list = exec.solve_task(problem.with_nt(self.join.1, a)).await;
-        let delim = exec.data[self.nt].all_eq.get(delimiter.into());
-        expr!(Join {list} {delim}).galloc()
+    fn join_empty_str(&'static self, exec: &'static Executor, mut prob: Problem) -> Option<JoinHandle<&'static Expr>> {
+        debg!("StrDeducer::join_empty_str {:?}", prob.value);
+
+        Some(task::spawn(async move {
+            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+            let v = prob.value.to_str();
+            let li = v.into_iter().map(|x| (0..x.len()).map(|i| &x[i..i+1]).galloc_scollect() ).galloc_scollect();
+            let list = exec.solve_task(prob.with_nt(self.join.1, li.into())).await;
+            expr!(Join {list} "").galloc()
+        }))
     }
+    // #[inline]
+    // async fn join(&self, problem: SubProblem, delimiter: &'static [&'static str], exec: &'static Executor) -> &'static Expr {
+    //     let v = problem.value.to_str();
+    //     debg!("TASK#{} StrDeducer::join {v:?} {delimiter:?}", currect_task_id());
+    //     let a = value_split(v, delimiter);
+    //     let list = exec.solve_task(problem.with_nt(self.join.1, a)).await;
+    //     let delim = exec.data[self.nt].all_eq.get(delimiter.into());
+    //     expr!(Join {list} {delim}).galloc()
+    // }
     #[inline]
     async fn fmt(&self, mut problem: Problem, formatter: &(Op1Enum, usize), exec: &'static Executor) -> &'static Expr {
         let v = problem.value.to_str();
         if let Some((op, a, b, cond)) = formatter.0.format_all(v) {
-            debg!("TASK#{}/{} StrDeducer::fmt {v:?} {formatter:?}", currect_task_id(), exec.problem_count());
-            exec.waiting_tasks().inc_cost(&mut problem, 2).await;
+            debg!("StrDeducer::fmt {v:?} {formatter:?}");
+            if !cond.is_all_true() { exec.waiting_tasks().inc_cost(&mut problem, 1).await; }
+            else { exec.waiting_tasks().inc_cost(&mut problem, 1).await; }
 
             let inner = exec.solve_task(problem.with_nt(formatter.1, a)).await;
             let rest = exec.solve_task(problem.with_nt(self.nt, b)).await;

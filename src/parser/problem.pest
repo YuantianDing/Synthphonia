@@ -9,7 +9,7 @@ strlit = @{ "\"" ~ (raw_string | "\\" ~ ANY)* ~ "\"" }
 boollit = @{ "true" | "false" | "null"}
 value = { numeral | strlit | boollit }
 start_comment = @{ (";" ~ (!newline ~ ANY)*)? }
-config_entry = { "#" ~ symbol ~ ":" ~ (value|symbol) }
+config_entry = { "#" ~ symbol ~ ":" ~ (value|symbol|expr) }
 config = { config_entry+ }
 
 logic = {"(" ~ "set-logic" ~ symbol ~ ")"}

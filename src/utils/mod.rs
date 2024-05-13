@@ -4,7 +4,7 @@ use futures::{future::select, FutureExt};
 use futures_core::Future;
 
 pub mod join;
-
+pub mod nested;
 #[derive(From, Into, Deref, DerefMut, DebugCustom, Display, PartialEq, PartialOrd, Clone, Copy)]
 #[debug(fmt = "{:?}", _0)]
 #[display(fmt = "{:?}", _0)]
@@ -68,6 +68,10 @@ pub fn select_ret4<T>(f1: impl Future<Output=T> + Unpin, f2: impl Future<Output=
     impl Future<Output = T> {
     select_ret(f1, select_ret(f2, select_ret(f3, f4)))
 }
+pub fn select_ret5<T>(f1: impl Future<Output=T> + Unpin, f2: impl Future<Output=T> + Unpin, f3: impl Future<Output=T> + Unpin, f4: impl Future<Output=T> + Unpin, f5: impl Future<Output=T> + Unpin) -> 
+    impl Future<Output = T> {
+    select_ret(f1, select_ret(f2, select_ret(f3, select_ret(f4, f5))))
+}
 
 pub async fn pending_if<T>(condition: bool, fut: impl Future<Output=T>) -> T {
     if condition { fut.await } else { crate::never!() }
@@ -113,9 +117,8 @@ macro_rules! async_closure {
 
 #[macro_export]
 macro_rules! never {
-    () => {
-        futures::future::pending().await
-    };
+    () => { futures::future::pending().await };
+    ($t:ty) => { futures::future::pending::<$t>().await };
 }
 #[extension(pub trait TryRetain)]
 impl<T> Vec<T> {

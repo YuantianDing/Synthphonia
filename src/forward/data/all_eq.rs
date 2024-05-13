@@ -5,6 +5,7 @@ use std::{
 };
 
 use derive_more::{Constructor, Deref, From, Into, TryInto};
+use futures::Future;
 use rc_async::sync::broadcast::MaybeReady;
 
 use crate::{
@@ -26,7 +27,15 @@ impl Data {
     #[inline(always)]
     pub fn set(&self, v: Value, e: Expr) -> Option<&'static Expr> {
         match unsafe{ self.as_mut().entry(v) } {
-            hash_map::Entry::Occupied(_) => None,
+            hash_map::Entry::Occupied(mut p) => {
+                if p.get().is_ready() {
+                    None
+                } else {
+                    let e = e.galloc();
+                    p.get_mut().set(e);
+                    Some(e)
+                }
+            }
             hash_map::Entry::Vacant(v) => {
                 let e = e.galloc();
                 v.insert(MaybeReady::Ready(e));
@@ -36,24 +45,33 @@ impl Data {
     }
 
     #[inline(always)]
-    pub fn set_ref(&self, v: Value, e: &'static Expr) -> Option<&'static Expr> {
+    pub fn set_ref(&self, v: Value, e: &'static Expr) {
+        let mut sd = None;
         match unsafe{ self.as_mut().entry(v) } {
-            hash_map::Entry::Occupied(_) => None,
+            hash_map::Entry::Occupied(mut p) => {
+                if !p.get().is_ready() { sd = p.get_mut().sender(e); }
+            }
             hash_map::Entry::Vacant(v) => {
                 v.insert(MaybeReady::Ready(e));
-                Some(e)
             }
         }
+        sd.map(|x| x.send(e));
     }
 
     #[inline(always)]
     pub async fn acquire(&self, v: Value) -> &'static Expr {
         match unsafe{ self.as_mut().entry(v) } {
             hash_map::Entry::Occupied(o) => o.get().get().await,
-            hash_map::Entry::Vacant(v) => {
-                let a = v.insert(MaybeReady::pending());
-                a.get().await
-            }
+            hash_map::Entry::Vacant(v) => v.insert(MaybeReady::pending()).get().await,
+        }
+    }
+
+    #[inline(always)]
+    pub fn is_pending(&self, v: Value) -> bool {
+        if let Some(a) = unsafe{ self.as_mut().get(&v) } {
+            !a.is_ready()
+        } else {
+            false
         }
     }
 

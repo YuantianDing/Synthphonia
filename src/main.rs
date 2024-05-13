@@ -8,6 +8,7 @@
 #![feature(noop_waker)]
 #![feature(map_try_insert)]
 #![feature(async_fn_in_trait)]
+#![feature(hash_raw_entry)]
 #![feature(cell_update)]
 #![feature(trait_alias)]
 
@@ -114,9 +115,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             if args.cond_search {
                 cfg.config.cond_search = true;
             }
-            let exec = Executor::new(ctx, cfg).galloc();
+            let exec = Executor::new(ctx, cfg);
             info!("Deduction Configuration: {:?}", exec.deducers);
-            let result = exec.block_on(exec.spawn_task(Problem::root(0, exec.ctx.output))).expect("Failure");
+            let result = exec.solve_top_blocked();
             let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
             println!("{}", func);
         } else {

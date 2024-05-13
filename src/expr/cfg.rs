@@ -121,6 +121,7 @@ pub struct CfgConfig {
     pub cond_search: bool,
     pub no_deduction: bool,
     pub ite_limit_rate: usize,
+    pub ite_limit_giveup: usize,
 }
 
 impl From<Config> for CfgConfig {
@@ -133,6 +134,7 @@ impl From<Config> for CfgConfig {
             cond_search: false,
             no_deduction: false,
             ite_limit_rate: value.get_i64("ite_limit_rate").unwrap_or(4000) as usize,
+            ite_limit_giveup: value.get_i64("ite_limit_giveup").unwrap_or(40) as usize,
         }
     }
 }

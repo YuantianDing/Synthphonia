@@ -39,5 +39,7 @@ tokio = { version = "1.37.0", features = ["full", "rt"] }
 topological-sort = "0.2.2"
 you-can = "0.0.14"
 rc_async = { path = "../rc_async"}
-# [profile.release]
-# debug = true
+radix_trie = "0.2.1"
+
+[profile.release]
+debug = true

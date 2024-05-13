@@ -23,13 +23,14 @@ macro_rules! for_all_op1 {
             StrToFloat
             FNotNeg
             FIsZero
-            FLen);
+            FLen
+            Map);
     };
 }
 #[macro_export]
 macro_rules! for_all_op2 {
     () => { 
-        _do!(Concat Eq At PrefixOf SuffixOf Contains Split Join Count Add Sub Head Tail Filter Map TimeFloor TimeAdd Floor Round Ceil FAdd FSub FFloor FRound FCeil FCount FShl10
+        _do!(Concat Eq At PrefixOf SuffixOf Contains Split Join Count Add Sub Head Tail Filter TimeFloor TimeAdd Floor Round Ceil FAdd FSub FFloor FRound FCeil FCount FShl10
             TimeMul StrAt)
     };
 }

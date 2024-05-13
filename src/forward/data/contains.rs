@@ -1,11 +1,9 @@
 use std::{collections::HashMap, cell::UnsafeCell};
 
 use itertools::Itertools;
+use rc_async::sync::broadcast;
 
-use crate::{value::Value, forward::future::channel::Channel, utils::UnsafeCellExt};
-
-
-
+use crate::{value::Value, utils::UnsafeCellExt};
 
 
 pub type ListStr = &'static [&'static str];
@@ -20,8 +18,8 @@ pub fn listsubseq(that: ListStr, this: ListStr) -> bool {
     }
     return iter.peek() == None;
 }
-pub struct ListData {
-    table: HashMap<String, Vec<(ListStr, Channel<Value>)>>
+pub struct Data {
+    table: HashMap<String, Vec<(ListStr, broadcast::Sender<Value>)>>
 }
 
 impl ListData {

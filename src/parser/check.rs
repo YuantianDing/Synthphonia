@@ -2,6 +2,7 @@
 
 use itertools::Itertools;
 use pest::{iterators::Pair, Parser};
+use regex::Regex;
 
 use crate::{expr::{ops::{Op1Enum, Op2Enum, Op3Enum}, Expr}, galloc::AllocForAny, utils::TryRetain, value::{ConstValue, Type}};
 use derive_more::Display;
@@ -10,7 +11,7 @@ use super::{config::Config, ioexamples::IOExamples, problem::{new_custom_error_s
 
 
 impl Expr {
-    pub fn parse(pair: Pair<'_, Rule>, sig: &FunSig) -> Result<&'static Expr, Error> {
+    pub fn parse(pair: Pair<'_, Rule>, sig: Option<&FunSig>) -> Result<&'static Expr, Error> {
         let mut vec = pair.into_inner().into_iter().collect_vec();
         let mut config = Config::new();
         vec.try_retain(|x| {
@@ -24,8 +25,11 @@ impl Expr {
             match value.as_rule() {
                 Rule::value => Ok(Self::Const(ConstValue::parse(value)?).galloc()),
                 Rule::symbol => {
-                    if let Some(v) = sig.index(value.as_str()) {
+                    let regex1 = Regex::new(format!(r"^<[0-9]>$").as_str()).unwrap();
+                    if let Some(v) = sig.and_then(|x| x.index(value.as_str())) {
                         Ok(Self::Var(v as _).galloc())
+                    } else if regex1.is_match(value.as_str()) {
+                        Ok(Self::Var(value.as_str()[1..2].parse::<_>().unwrap()).galloc())
                     } else {
                         return Err(new_custom_error_span("Not an input variable".into(), value.as_span()));
                     }
@@ -72,7 +76,7 @@ impl DefineFun {
         let rettype = Type::parse(typ)?;
         let sig = FunSig{name: name.as_str().into(), args, rettype};
         
-        let expr = Expr::parse(expr, &sig)?;
+        let expr = Expr::parse(expr, Some(&sig))?;
         Ok(Self{sig, expr})
     }
 }

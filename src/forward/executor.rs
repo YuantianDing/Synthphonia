@@ -13,28 +13,34 @@ use crate::{
     }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, solutions::CONDITIONS, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Value}, warn
 };
 use crate::expr;
-use super::data::{self, all_eq, size::EV, Data};
+use super::{bridge::Bridge, data::{self, all_eq, size::EV, Data}};
 
 pub trait EnumFn = FnMut(Expr, Value) -> Result<(), ()>;
 
 pub struct TaskWaitingCost {
-    sender: broadcast::Sender<()>
+    sender: broadcast::Sender<()>,
+    cur_cost: usize,
 }
 
 impl TaskWaitingCost {
     pub fn new() -> Self {
-        TaskWaitingCost { sender: broadcast::channel() }
+        TaskWaitingCost { sender: broadcast::channel(), cur_cost: 0  }
     }
     
     pub async fn inc_cost(&mut self, problem: &mut Problem, amount: usize) -> () {
         let mut rv = self.sender.reciever();
-        for _ in 0..amount {
-            let _ = rv.next().await;
+        problem.used_cost += amount;
+        let amount = problem.used_cost as isize - self.cur_cost as isize;
+        if amount > 0 {
+            for _ in 0..amount {
+                let _ = rv.next().await;
+            }
         }
     }
-
+    
     pub fn release_cost_limit(&mut self, count: usize) -> () {
         for _ in 0..count {
+            self.cur_cost += 1;
             self.sender.send(());
         }
     }
@@ -58,21 +64,22 @@ pub struct Executor {
     pub waiting_tasks: UnsafeCell<TaskWaitingCost>,
     pub top_task: UnsafeCell<JoinHandle<&'static Expr>>,
     expr_collector: UnsafeCell<Vec<EV>>,
+    pub bridge: Bridge,
 }
 
 impl Executor {
     pub fn problem_count(&self) -> usize{
         self.subproblem_count.get()
     }
-    pub fn new(ctx: Context, cfg: Cfg) -> &'static Self {
+    pub fn new(ctx: Context, cfg: Cfg) -> Self {
         let all_str_const = cfg[0].rules.iter().flat_map(|x| if let ProdRule::Const(ConstValue::Str(s)) = x { Some(*s) } else { None }).collect();
         let data = Data::new(&cfg, &ctx);
         let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i)).collect_vec();
         let other = OtherData { all_str_const };
         let exec = Self { counter: 0.into(), subproblem_count: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(),
-            cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into(), top_task: task::spawn(futures::future::pending()).into() };
+            cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into(), top_task: task::spawn(futures::future::pending()).into(), bridge: Bridge::new()};
         TextObjData::build_trie(&exec);
-        exec.galloc()
+        exec
     }
     pub fn top_task(&self) -> &mut JoinHandle<&'static Expr> {
         unsafe { self.top_task.as_mut() }
@@ -110,12 +117,14 @@ impl Executor {
                 expr!(Ite {c} "" {result}).galloc(),
         }
     }
-    pub fn solve_top_blocked(&'static self, problem: Problem) -> &'static Expr {
-        self.subproblem_count.update(|x| x+1);
-        *self.top_task() = task::spawn(self.deducers[problem.nt].deduce(self, problem));
-        let _ = self.run();
-        
-        if let Poll::Ready(r) = self.top_task().poll_rc_nocx() {
+    pub fn solve_top_blocked(self) -> &'static Expr {
+        let problem = Problem::root(0, self.ctx.output);
+        let this = unsafe { (&self as *const Executor).as_ref::<'static>().unwrap() };
+        this.subproblem_count.update(|x| x+1);
+        *this.top_task() = task::spawn(this.deducers[problem.nt].deduce(this, problem));
+        let _ = this.run();
+        self.bridge.abort_all();
+        if let Poll::Ready(r) = this.top_task().poll_rc_nocx() {
             r
         } else { panic!("should not reach here.") }
         // match problems.entry((nt, value)) {
@@ -126,6 +135,18 @@ impl Executor {
         //         t
         //     }
         // }
+    }
+
+    pub fn solve_top_size_limit(self) -> Option<&'static Expr> {
+        let problem = Problem::root(0, self.ctx.output);
+        let this = unsafe { (&self as *const Executor).as_ref::<'static>().unwrap() };
+        this.subproblem_count.update(|x| x+1);
+        *this.top_task() = task::spawn(this.deducers[problem.nt].deduce(this, problem));
+        let _ = this.run();
+        self.bridge.abort_all();
+        if let Poll::Ready(r) = this.top_task().poll_rc_nocx() {
+            Some(r)
+        } else { None }
     }
 
     pub fn size(&self) -> usize { self.cur_size.get() }
@@ -139,6 +160,7 @@ impl Executor {
             if self.counter.get() > 300000 {
                 self.waiting_tasks().release_cost_limit(self.cfg.config.increase_cost_limit);
             }
+            self.bridge.check()
         }
         self.counter.update(|x| x + 1);
         

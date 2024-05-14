@@ -4,7 +4,7 @@ use std::pin::pin;
 
 use rc_async::task::{self, JoinHandle};
 
-use crate::{backward::str::HandleRcVec, closure, debg, expr::{cfg::Cfg, context::Context, ops::{self, Op1Enum}, Expr}, forward::executor::Executor, galloc::{self, AllocForAny}, never, solutions::new_thread_with_size_limit, utils::{select_ret, select_ret3}, value::Value};
+use crate::{backward::str::HandleRcVec, closure, debg, expr::{cfg::Cfg, context::Context, ops::{self, Op1Enum}, Expr}, forward::executor::Executor, galloc::{self, AllocForAny}, never, solutions::{new_thread_with_limit}, utils::{select_ret, select_ret3}, value::Value};
 
 use super::{Deducer, Problem};
 
@@ -50,7 +50,8 @@ impl ListDeducer {
             let mut cfg = self.map.as_ref().unwrap().clone();
             let ctx = Context::new(p.len(), vec![l.into()], vec![], p.into());
             cfg.config.size_limit = 10;
-            let handle = new_thread_with_size_limit(cfg, ctx);
+            cfg.config.time_limit = 1000;
+            let handle = new_thread_with_limit(cfg, ctx);
             debg!("ListDeducer::map {:?} {:?} new thread {}", prob.value, list, handle.id());
             let inner = exec.bridge.wait(handle).await;
             let mut result = exec.data[prob.nt].all_eq.get(list.into());

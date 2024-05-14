@@ -155,12 +155,13 @@ pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> JoinHandle<Expression> 
     new_thread(cfg, ctx)
 }
 
-pub fn new_thread_with_size_limit(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
-    // eprintln!("Creating new thread {:?}", ctx.output);
+pub fn new_thread_with_limit(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
     tokio::spawn(async move {
         if let Some(p) = (move || {
-            let result = Executor::new(ctx, cfg).solve_top_size_limit().map(|e| e.to_expression());
+            let result = Executor::new(ctx, cfg).solve_top_with_limit().map(|e| e.to_expression());
             result
-        })() { p } else { never!() }
+        })() {
+            p
+        } else { never!() }
     })
 }

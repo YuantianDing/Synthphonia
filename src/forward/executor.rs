@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, pin::pin, task::Poll
+    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, pin::pin, task::Poll, time::{self, Duration, Instant}
 };
 
 use derive_more::{Constructor, Deref, From, Into};
@@ -65,6 +65,7 @@ pub struct Executor {
     pub top_task: UnsafeCell<JoinHandle<&'static Expr>>,
     expr_collector: UnsafeCell<Vec<EV>>,
     pub bridge: Bridge,
+    pub start_time: time::Instant,
 }
 
 impl Executor {
@@ -77,7 +78,9 @@ impl Executor {
         let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i)).collect_vec();
         let other = OtherData { all_str_const };
         let exec = Self { counter: 0.into(), subproblem_count: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(),
-            cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into(), top_task: task::spawn(futures::future::pending()).into(), bridge: Bridge::new()};
+            cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into(),
+            top_task: task::spawn(futures::future::pending()).into(), bridge: Bridge::new(),
+            start_time: Instant::now() };
         TextObjData::build_trie(&exec);
         exec
     }
@@ -137,7 +140,7 @@ impl Executor {
         // }
     }
 
-    pub fn solve_top_size_limit(self) -> Option<&'static Expr> {
+    pub fn solve_top_with_limit(self) -> Option<&'static Expr> {
         let problem = Problem::root(0, self.ctx.output);
         let this = unsafe { (&self as *const Executor).as_ref::<'static>().unwrap() };
         this.subproblem_count.update(|x| x+1);
@@ -170,7 +173,7 @@ impl Executor {
                 self.collect_condition(e, v);
             }
         }
-        if self.top_task().is_ready() {
+        if self.top_task().is_ready() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
             return Err(());
         }
         Ok(())

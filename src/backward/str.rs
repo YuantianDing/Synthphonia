@@ -225,7 +225,7 @@ impl StrDeducer {
 
     #[inline]
     fn join(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
-        if prob.used_cost >= 8 { return None; }
+        if prob.used_cost >= 6 { return None; }
 
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();

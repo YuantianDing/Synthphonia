@@ -157,13 +157,13 @@ impl StrDeducer {
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();
         let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
-        if !(contain_count >= self.split_once_count(exec) && prob.used_cost < 15) { return None; }
+        // if !(contain_count >= self.split_once_count(exec) && prob.used_cost < 15) { return None; }
 
         
         Some(task::spawn(async move {
             let (a, b, cases) = split_once(v, delimiter);
             if !cases.is_all_true() && self.ite_concat.1 == usize::MAX { return never!() }
-            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+            exec.waiting_tasks().inc_cost(&mut prob, 1).await;
 
             debg!("StrDeducer::split1 {v:?} {delimiter:?}");
 
@@ -203,14 +203,14 @@ impl StrDeducer {
         let start_count: usize = v.iter().zip(prefix.iter()).map(|(x, y)| if x.starts_with(*y) { y.len() } else { 0 }).sum();
         let eq_count: usize = v.iter().zip(prefix.iter()).map(|(x, y)| if x == y { y.len() } else { 0 }).sum();
 
-        if !(start_count >= self.ite_concat_count(exec) || eq_count >= self.ite_concat_eq_count(exec)) { return None; }
+        // if !(start_count >= self.ite_concat_count(exec) || eq_count >= self.ite_concat_eq_count(exec)) { return None; }
 
         
         Some(task::spawn(async move {
             debg!("StrDeducer::ite_concat {} {:?} {:?} {start_count} {eq_count}", prob.nt, v, prefix);
             let (a, b) = ite_concat_split(v, prefix);
             
-            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+            exec.waiting_tasks().inc_cost(&mut prob, 1).await;
 
             let right = exec.solve_task(prob.with_value(b)).await;
             
@@ -234,7 +234,7 @@ impl StrDeducer {
 
         
         Some(task::spawn(async move {
-            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+            exec.waiting_tasks().inc_cost(&mut prob, 1).await;
 
             let a = value_split(v, delimiter);
             debg!("StrDeducer::join {v:?} {delimiter:?}");
@@ -250,7 +250,7 @@ impl StrDeducer {
         debg!("StrDeducer::join_empty_str {:?}", prob.value);
 
         Some(task::spawn(async move {
-            exec.waiting_tasks().inc_cost(&mut prob, 2).await;
+            exec.waiting_tasks().inc_cost(&mut prob, 1).await;
             let v = prob.value.to_str();
             let li = v.into_iter().map(|x| (0..x.len()).map(|i| &x[i..i+1]).galloc_scollect() ).galloc_scollect();
             let list = exec.solve_task(prob.with_nt(self.join.1, li.into())).await;

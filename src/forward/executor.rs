@@ -5,7 +5,7 @@ use std::{
 use derive_more::{Constructor, Deref, From, Into};
 use futures::StreamExt;
 use itertools::Itertools;
-use rc_async::{sync::broadcast, task::{self, JoinHandle}};
+use rc_async::{sync::{broadcast, broadcastque}, task::{self, JoinHandle}};
 
 use crate::{
     backward::{ Deducer, DeducerEnum, Problem}, debg, debg2, expr::{
@@ -18,31 +18,29 @@ use super::{bridge::Bridge, data::{self, all_eq, size::EV, Data}};
 pub trait EnumFn = FnMut(Expr, Value) -> Result<(), ()>;
 
 pub struct TaskWaitingCost {
-    sender: broadcast::Sender<()>,
+    sender: broadcastque::Sender<()>,
     cur_cost: usize,
 }
 
 impl TaskWaitingCost {
     pub fn new() -> Self {
-        TaskWaitingCost { sender: broadcast::channel(), cur_cost: 0  }
+        TaskWaitingCost { sender: broadcastque::channel(), cur_cost: 0  }
     }
     
     pub async fn inc_cost(&mut self, problem: &mut Problem, amount: usize) -> () {
-        let mut rv = self.sender.reciever();
-        problem.used_cost += amount;
-        let amount = problem.used_cost as isize - self.cur_cost as isize;
-        if amount > 0 {
-            for _ in 0..amount {
-                let _ = rv.next().await;
-            }
-        }
+        // let mut rv: broadcastque::Reciever<()> = self.sender.reciever();
+        // problem.used_cost += amount;
+        // let amount = problem.used_cost as isize - self.cur_cost as isize;
+        // if amount > 0 {
+        //     for _ in 0..amount {
+        //         let _ = rv.next().await;
+        //     }
+        // }
+        ()
     }
     
     pub fn release_cost_limit(&mut self, count: usize) -> () {
-        for _ in 0..count {
-            self.cur_cost += 1;
-            self.sender.send(());
-        }
+        self.sender.send((), count);
     }
 }
 
@@ -158,12 +156,12 @@ impl Executor {
     
     #[inline]
     pub fn enum_expr(&'static self, e: Expr, v: Value) -> Result<(), ()> {
-        if self.counter.get() % 300000 == 0 {
-            info!("Searching size={} [{}] - {:?} {:?}", self.cur_size.get(), self.counter.get(), e, v);
-            if self.counter.get() > 300000 {
-                self.waiting_tasks().release_cost_limit(self.cfg.config.increase_cost_limit);
+        if self.counter.get() % 10000 == 1 {
+            if self.counter.get() % 300000 == 1 {
+                info!("Searching size={} [{}] - {:?} {:?} {}", self.cur_size.get(), self.counter.get(), e, v, self.subproblem_count.get());
             }
-            self.bridge.check()
+            self.waiting_tasks().release_cost_limit(self.cfg.config.increase_cost_limit);
+            self.bridge.check();
         }
         self.counter.update(|x| x + 1);
         

@@ -62,7 +62,8 @@ pub struct Executor {
     pub data: Vec<Data>,
     pub other: OtherData,
     pub waiting_tasks: UnsafeCell<TaskWaitingCost>,
-    pub top_task: UnsafeCell<JoinHandle<&'static Expr>>,
+    pub result: UnsafeCell<Option<&'static Expr>>,
+    pub top_problem: UnsafeCell<Option<Problem>>,
     expr_collector: UnsafeCell<Vec<EV>>,
     pub bridge: Bridge,
     pub start_time: time::Instant,
@@ -79,13 +80,18 @@ impl Executor {
         let other = OtherData { all_str_const };
         let exec = Self { counter: 0.into(), subproblem_count: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(),
             cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into(),
-            top_task: task::spawn(futures::future::pending()).into(), bridge: Bridge::new(),
+            result: None.into(),
+            top_problem: None.into(),
+            bridge: Bridge::new(),
             start_time: Instant::now() };
         TextObjData::build_trie(&exec);
         exec
     }
-    pub fn top_task(&self) -> &mut JoinHandle<&'static Expr> {
-        unsafe { self.top_task.as_mut() }
+    pub fn top_problem(&self) -> &mut Option<Problem> {
+        unsafe { self.top_problem.as_mut() }
+    }
+    pub fn result(&self) -> &mut Option<&'static Expr> {
+        unsafe { self.result.as_mut() }
     }
     pub fn collect_expr(&self, e: &'static Expr, v: Value) {
         unsafe { self.expr_collector.as_mut().push((e, v)) }
@@ -108,6 +114,18 @@ impl Executor {
         task::spawn(self.deducers[problem.nt].deduce(self, problem)).await
     }
     #[inline]
+    pub fn solve_task_sync(&'static self, problem: Problem) -> Option<&'static Expr> {
+        if let Some(e) = self.data[problem.nt].all_eq.at(problem.value) {
+            return Some(e);
+        }
+        self.subproblem_count.update(|x| x+1);
+        let task = task::spawn(self.deducers[problem.nt].deduce(self, problem));
+        match task.poll_rc_nocx() {
+            Poll::Ready(a) => Some(a),
+            Poll::Pending => None,
+        }
+    }
+    #[inline]
     pub async fn generate_condition(&'static self, problem: Problem, result: &'static Expr) -> &'static Expr {
         if problem.value.is_all_true() { return result; }
         let left = pin!(self.solve_task(problem.clone()));
@@ -122,12 +140,12 @@ impl Executor {
     }
     pub fn solve_top_blocked(self) -> &'static Expr {
         let problem = Problem::root(0, self.ctx.output);
+        self.top_problem.replace(Some(problem.clone()));
         let this = unsafe { (&self as *const Executor).as_ref::<'static>().unwrap() };
         this.subproblem_count.update(|x| x+1);
-        *this.top_task() = task::spawn(this.deducers[problem.nt].deduce(this, problem));
         let _ = this.run();
         self.bridge.abort_all();
-        if let Poll::Ready(r) = this.top_task().poll_rc_nocx() {
+        if let Some(r) = this.result() {
             r
         } else { panic!("should not reach here.") }
         // match problems.entry((nt, value)) {
@@ -144,10 +162,9 @@ impl Executor {
         let problem = Problem::root(0, self.ctx.output);
         let this = unsafe { (&self as *const Executor).as_ref::<'static>().unwrap() };
         this.subproblem_count.update(|x| x+1);
-        *this.top_task() = task::spawn(this.deducers[problem.nt].deduce(this, problem));
         let _ = this.run();
         self.bridge.abort_all();
-        if let Poll::Ready(r) = this.top_task().poll_rc_nocx() {
+        if let Some(r) = this.result() {
             Some(r)
         } else { None }
     }
@@ -163,6 +180,10 @@ impl Executor {
             if self.counter.get() > 300000 {
                 self.waiting_tasks().release_cost_limit(self.cfg.config.increase_cost_limit);
             }
+            let p = self.top_problem().unwrap();
+            *self.result() = self.solve_task_sync(p);
+            if self.result().is_some() { return Err(()); }
+
             self.bridge.check()
         }
         self.counter.update(|x| x + 1);
@@ -173,7 +194,7 @@ impl Executor {
                 self.collect_condition(e, v);
             }
         }
-        if self.top_task().is_ready() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
+        if (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
             return Err(());
         }
         Ok(())

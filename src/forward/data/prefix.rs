@@ -10,7 +10,7 @@ use radix_trie::Trie;
 use rc_async::sync::broadcast;
 use tokio::{runtime::Handle, sync::mpsc};
 
-use crate::{closure, debg2, expr::Expr, forward::executor::Executor, utils::{nested::RadixTrieN, UnsafeCellExt}, value::{self, Value}};
+use crate::{closure, debg2, expr::Expr, forward::executor::Executor, never, utils::{nested::RadixTrieN, UnsafeCellExt}, value::{self, Value}};
 
 use super::size::EV;
 pub type Indices = Vec<usize>;
@@ -105,6 +105,7 @@ impl Data {
         for v in self.lookup_existing(value) {
             if let Some(t) = f(v) { return t; }
         }
+        return never!();
         let mut rv = self.listen(value);
         loop {
             if let Some(t) = f(rv.next().await.unwrap()) { return t; }

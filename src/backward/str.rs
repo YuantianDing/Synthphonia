@@ -157,7 +157,7 @@ impl StrDeducer {
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();
         let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
-        if !(contain_count >= self.split_once_count(exec) && prob.used_cost < 15) { return None; }
+        // if !(contain_count >= self.split_once_count(exec) && prob.used_cost < 15) { return None; }
 
         
         Some(task::spawn(async move {
@@ -203,7 +203,7 @@ impl StrDeducer {
         let start_count: usize = v.iter().zip(prefix.iter()).map(|(x, y)| if x.starts_with(*y) { y.len() } else { 0 }).sum();
         let eq_count: usize = v.iter().zip(prefix.iter()).map(|(x, y)| if x == y { y.len() } else { 0 }).sum();
 
-        if !(start_count >= self.ite_concat_count(exec) || eq_count >= self.ite_concat_eq_count(exec)) { return None; }
+        // if !(start_count >= self.ite_concat_count(exec) || eq_count >= self.ite_concat_eq_count(exec)) { return None; }
 
         
         Some(task::spawn(async move {

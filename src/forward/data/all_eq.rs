@@ -9,10 +9,7 @@ use futures::Future;
 use rc_async::sync::broadcast::MaybeReady;
 
 use crate::{
-    galloc::AllocForAny,
-    expr::Expr,
-    utils::UnsafeCellExt,
-    value::Value, log, info, debg,
+    debg, expr::Expr, galloc::AllocForAny, info, log, never, utils::UnsafeCellExt, value::Value
 };
 
 #[derive(From, Deref)]
@@ -62,7 +59,7 @@ impl Data {
     pub async fn acquire(&self, v: Value) -> &'static Expr {
         match unsafe{ self.as_mut().entry(v) } {
             hash_map::Entry::Occupied(o) => o.get().get().await,
-            hash_map::Entry::Vacant(v) => v.insert(MaybeReady::pending()).get().await,
+            hash_map::Entry::Vacant(v) => never!(),
         }
     }
 

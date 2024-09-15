@@ -81,6 +81,7 @@ impl Data {
             for v in self.lookup_existing(value) {
                 if let Some(t) = f(v) { return t; }
             }
+            return never!();
             loop {
                 if let Some(t) = f(rv.next().await.unwrap()) { return t; }
             }

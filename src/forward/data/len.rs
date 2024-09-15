@@ -9,7 +9,7 @@ use itertools::Itertools;
 use rc_async::sync::broadcast;
 
 use crate::{
-    debg, expr::Expr, forward::executor::Executor, galloc::AllocForAny, info, log, utils::UnsafeCellExt, value::Value
+    debg, expr::Expr, forward::executor::Executor, galloc::AllocForAny, info, log, never, utils::UnsafeCellExt, value::Value
 };
 
 
@@ -51,7 +51,7 @@ impl Data {
                 if let Some(t) = f(*v) { return t; }
             }
         }
-
+        return never!();
         let mut rv = self.listen_at(v);
         loop {
             if let Some(t) = f(rv.next().await.unwrap()) { return t; }

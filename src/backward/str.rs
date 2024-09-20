@@ -7,7 +7,7 @@ use futures_core::Future;
 use itertools::Itertools;
 use rc_async::task::{self, JoinHandle};
 
-use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::executor::Executor, info, text::formatting::Op1EnumToFormattingOp, utils::select_ret5, DEBUG};
+use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::executor::{Executor, COUNTER}, info, text::formatting::Op1EnumToFormattingOp, utils::select_ret5, DEBUG};
 use crate::{galloc::{self, AllocForAny, AllocForExactSizeIter, AllocForIter}, never, utils::{pending_if, select_all, select_ret, select_ret3, select_ret4, UnsafeCellExt}, value::Value};
 
 use crate::expr;
@@ -80,9 +80,9 @@ impl Deducer for StrDeducer {
             // if delimiterset.insert(vec) {
                 futures.extend_iter(this.split1(exec, prob, delimiter).into_iter());
                 futures.extend_iter(this.join(exec, prob, delimiter).into_iter());
-            // }
-            None::<&'static Expr>
-        }});
+                // }
+                None::<&'static Expr>
+            }});
         
         // let mut prefixset = HashSet::<Vec<&'static str>>::new();
         let prefix_event = exec.data[self.nt].prefix().unwrap().listen_for_each(prob.value, closure! { clone futures, clone prob; move |prefix: Value| {

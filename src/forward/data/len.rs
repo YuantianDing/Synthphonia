@@ -22,6 +22,7 @@ pub struct Data{
 
 impl Data {
     pub fn new() -> Self { Data{ found: HashMap::new().into(), event: HashMap::new(), len_limit: 3 } }
+    pub fn count(&self) -> usize { self.found.len() }
     #[inline]
     pub fn update(&mut self, value: Value, exec: &'static Executor) {
         if exec.size() > self.len_limit { return; }

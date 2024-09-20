@@ -140,6 +140,9 @@ impl RadixTrieN {
     pub fn new(len: usize) -> Self {
         Self( (0..len).map(|_| Trie::new()).collect_vec() )
     }
+    pub fn len(&self) -> usize {
+        self.0.iter().map(|x| x.len()).sum()
+    }
     pub fn insert(&mut self, key: &'static [&'static str]) {
         for (s, v) in key.iter().cloned().zip(self.0.iter_mut()) {
             if let Some(a) = v.get_mut(s) {
@@ -197,6 +200,9 @@ pub struct IntervalTreeN {
 impl IntervalTreeN {
     pub fn new(expected: &'static [&'static str]) -> Self {
         Self { expected, maps: (0..expected.len()).map(|_| IntervalMap::new()).collect_vec()}
+    }
+    pub fn len(&self) -> usize {
+        self.maps.iter().map(|x| x.len()).sum()
     }
     pub fn insert(&mut self, key: &'static [&'static str]) {
         for (k, (e, v)) in key.iter().cloned().zip(self.expected.iter().cloned().zip(self.maps.iter_mut())) {

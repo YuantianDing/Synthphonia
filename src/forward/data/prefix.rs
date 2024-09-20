@@ -36,6 +36,7 @@ impl Data {
             }.into())
         } else { None }
     }
+    pub fn count(&self) -> usize { self.found.len() }
     
     pub fn to_ranges(&self, value: Value) -> Option<Vec<Vec<Range<usize>>>> {
         if let Ok(v) = TryInto::<&[&str]>::try_into(value) {

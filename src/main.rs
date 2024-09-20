@@ -27,7 +27,7 @@ use std::{borrow::BorrowMut, cell::Cell, cmp::min, fs, process::exit};
 
 use clap::Parser;
 use expr::{cfg::Cfg, context::Context, Expr};
-use forward::executor::Executor;
+use forward::executor::{Executor, COUNTER};
 use futures::{stream::FuturesUnordered, StreamExt};
 use galloc::AllocForAny;
 use itertools::Itertools;
@@ -111,15 +111,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             println!("{:?}", ctx.output);
             return Ok(());
         }
-        if args.thread == 1 {
+        let result = if args.thread == 1 {
             if args.cond_search {
                 cfg.config.cond_search = true;
             }
             let exec = Executor::new(ctx, cfg);
             info!("Deduction Configuration: {:?}", exec.deducers);
-            let result = exec.solve_top_blocked();
-            let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
-            println!("{}", func);
+            exec.solve_top_blocked()
         } else {
             let mut solutions = Solutions::new(cfg.clone(), ctx.clone());
 
@@ -127,12 +125,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             for i in 0..min(args.thread, ctx.len) {
                 solutions.create_new_thread();
             }
+            solutions.solve_loop().await
+        };
+        let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
+        println!("{}", func);
 
-            let result = solutions.solve_loop().await;
-            let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
-            println!("{}", func);
-            exit(0);
+        let mut numbers = fs::read_to_string("/tmp/synthphonia_numbers").ok().map(|s| {
+            s.lines().map(|x| x.parse::<usize>().unwrap()).collect::<Vec<_>>()
+        }).unwrap_or((0..13).map(|_| 0).collect_vec());
+        numbers[0] += 1;
+        {
+            let counter = COUNTER.lock();
+            numbers[1] += (*counter)[0];
+            numbers[2] += (*counter)[1];
+            numbers[3] += (*counter)[2];
+            numbers[4] += (*counter)[3];
+            numbers[5] += (*counter)[4];
+            numbers[6] += (*counter)[5];
+            numbers[7] = std::cmp::max(numbers[7], (*counter)[0]);
+            numbers[8] = std::cmp::max(numbers[8], (*counter)[1]);
+            numbers[9] = std::cmp::max(numbers[9], (*counter)[2]);
+            numbers[10] = std::cmp::max(numbers[10], (*counter)[3]);
+            numbers[11] = std::cmp::max(numbers[11], (*counter)[4]);
+            numbers[12] = std::cmp::max(numbers[12], (*counter)[5]);
         }
+
+        fs::write("/tmp/synthphonia_numbers", numbers.into_iter().join("\n")).ok();
+        
+        exit(0);
     }
     Ok(())
 }

@@ -18,7 +18,7 @@ pub struct ListDeducer {
 
 impl Deducer for ListDeducer {
     async fn deduce(&'static self, exec: &'static crate::forward::executor::Executor, prob: Problem) -> &'static crate::expr::Expr {
-        debg!("Deducing subproblem: {} {:?}", exec.cfg[self.nt].name, prob.value);
+        debg!("Deducing subproblem:{} {:?}", exec.cfg[self.nt].name, prob.value);
         let task = exec.data[self.nt].all_eq.acquire(prob.value);
 
         let futures = HandleRcVec::new();

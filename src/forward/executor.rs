@@ -1,11 +1,12 @@
 use std::{
-    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, pin::pin, task::Poll, time::{self, Duration, Instant}
+    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, os::unix::thread, pin::pin, task::Poll, time::{self, Duration, Instant}
 };
 
 use derive_more::{Constructor, Deref, From, Into};
 use futures::StreamExt;
 use itertools::Itertools;
 use rc_async::{sync::{broadcast, broadcastque}, task::{self, JoinHandle}};
+use spin::Mutex;
 
 use crate::{
     backward::{ Deducer, DeducerEnum, Problem}, debg, debg2, expr::{
@@ -16,6 +17,9 @@ use crate::expr;
 use super::{bridge::Bridge, data::{self, all_eq, size::EV, Data}};
 
 pub trait EnumFn = FnMut(Expr, Value) -> Result<(), ()>;
+
+pub static COUNTER: Mutex<[usize; 6]> = Mutex::new([0;6]);
+
 
 pub struct TaskWaitingCost {
     sender: broadcastque::Sender<()>,
@@ -28,15 +32,14 @@ impl TaskWaitingCost {
     }
     
     pub async fn inc_cost(&mut self, problem: &mut Problem, amount: usize) -> () {
-        // let mut rv: broadcastque::Reciever<()> = self.sender.reciever();
-        // problem.used_cost += amount;
-        // let amount = problem.used_cost as isize - self.cur_cost as isize;
-        // if amount > 0 {
-        //     for _ in 0..amount {
-        //         let _ = rv.next().await;
-        //     }
-        // }
-        ()
+        let mut rv: broadcastque::Reciever<()> = self.sender.reciever();
+        problem.used_cost += amount;
+        let amount = problem.used_cost as isize - self.cur_cost as isize;
+        if amount > 0 {
+            for _ in 0..amount {
+                let _ = rv.next().await;
+            }
+        }
     }
     
     pub fn release_cost_limit(&mut self, count: usize) -> () {
@@ -136,6 +139,15 @@ impl Executor {
                 expr!(Ite {c} "" {result}).galloc(),
         }
     }
+    pub fn save_numbers(self) {
+        let mut numbers = COUNTER.lock();
+        (*numbers)[0] += self.counter.get();
+        (*numbers)[1] += self.data.iter().map(|x| x.all_eq.count()).sum::<usize>();
+        (*numbers)[2] += self.data.iter().map(|x| x.prefix().unwrap().count()).sum::<usize>();
+        (*numbers)[3] += self.data.iter().map(|x| x.substr().unwrap().count()).sum::<usize>();
+        (*numbers)[4] += self.data.iter().map(|x| x.len().unwrap().count()).sum::<usize>();
+        (*numbers)[5] += self.data.iter().map(|x| x.contains().unwrap().count()).sum::<usize>();
+    }
     pub fn solve_top_blocked(self) -> &'static Expr {
         let problem = Problem::root(0, self.ctx.output);
         self.top_problem.replace(Some(problem.clone()));
@@ -143,6 +155,7 @@ impl Executor {
         this.subproblem_count.update(|x| x+1);
         let _ = this.run();
         self.bridge.abort_all();
+        self.save_numbers();
         if let Some(r) = this.result() {
             r
         } else { panic!("should not reach here.") }
@@ -162,6 +175,7 @@ impl Executor {
         this.subproblem_count.update(|x| x+1);
         let _ = this.run();
         self.bridge.abort_all();
+        self.save_numbers();
         if let Some(r) = this.result() {
             Some(r)
         } else { None }

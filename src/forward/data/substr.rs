@@ -22,6 +22,7 @@ pub struct Data {
 }
 
 impl Data {
+    pub fn count(&self) -> usize { self.found.len() }
     pub fn new(expected: Value, size_limit: usize) -> Option<UnsafeCell<Self>> {
         if let Value::Str(e) = expected {
             Some(Self {

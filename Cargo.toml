@@ -40,6 +40,7 @@ topological-sort = "0.2.2"
 you-can = "0.0.14"
 rc_async = { path = "../rc_async"}
 radix_trie = "0.2.1"
+counter = "0.6.0"
 
 [profile.release]
 debug = true

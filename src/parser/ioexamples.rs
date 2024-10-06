@@ -16,7 +16,9 @@ use crate::value::Type;
 
 use super::problem::Rule;
 
+use counter::Counter;
 use itertools::Itertools;
+use pest::error::InputLocation;
 use pest::iterators::Pair;
 
 use crate::value::Value;
@@ -61,4 +63,54 @@ impl IOExamples {
         let output = inputs.pop().unwrap();
         Ok(Self { inputs, output })
     }
+    
+    pub fn extract_constants(&self) -> Vec<&'static str> {
+        let mut counter = Counter::<&str, usize>::new();
+        let mut total_len = 0;
+        for s1 in self.inputs.iter().chain(std::iter::once(&self.output)) {
+            if let Value::Str(a) = s1 {
+                for s2 in a.iter() {
+                    for s in all_slices(s2) {
+                        counter[&s] += 1;
+                        total_len += s.len();
+                    }
+                }
+            }
+        }
+
+        let mut constants: Vec<&'static str> = Vec::new();
+        for (k, v) in counter.iter() {
+            let mut flag = false;
+            if *v >= std::cmp::max(3, total_len / 200) {
+                if k.len() == 1 && k.chars().all(char::is_alphanumeric) {
+                    continue;
+                }
+                if k.chars().all(char::is_numeric) {
+                    continue;
+                }
+                if k.len() == 1 {
+                    flag = true;
+                }
+                if k.len() >= 6 {
+                    flag = true;
+                } else if k.len() >= 4 && *v >= std::cmp::max(5, total_len / 100) {
+                    flag = true;
+                } else if *v >= std::cmp::max(8, total_len / 30) {
+                    flag = true;
+                }
+
+                if flag && constants.iter().filter(|c| c.contains(k)).all(|c| counter[k] > counter[c] + 1) {
+                    constants = constants .iter()
+                        .filter(|&c| !c.contains(k) || counter[k] + 1 < counter[c]).cloned().collect();
+                    constants.push(k);
+                }
+            }
+        }
+
+        constants
+    }
+}
+
+fn all_slices(a: &str) -> impl Iterator<Item = &str> {
+    (0..a.len()).flat_map(move |i| a.char_indices().skip(i).map(move |(j, _)| &a[i..j + 1]))
 }

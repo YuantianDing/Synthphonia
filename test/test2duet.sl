@@ -3,66 +3,41 @@
 (synth-fun f ((name String)) String
     (
       (Start String (ntString))
-      (ntString String (" " name
+      (ntString String ("" name
             (str.++ ntString ntString) 
             (str.head ntString ntInt #cost:4)
             (str.tail ntString ntInt #cost:4)
 
             (list.at ntList ntInt) 
             (str.join ntList ntString)
+            (int.to.str ntInt #cost:2)
 
-            (float.fmt ntFloat)
-            (int.fmt ntInt)
-            (month.fmt ntInt)
-            (weekday.fmt ntInt)
-            (time.fmt ntTime)
-
-            (str.retainLl ntString #cost:4)
-            (str.retainLc ntString #cost:4)
-            (str.retainL ntString #cost:4)
-            (str.retainN ntString #cost:4)
-            (str.retainLN ntString #cost:4)
-            (str.uppercase ntString #cost:3)
-            (str.lowercase ntString #cost:3)
+            (str.retainLl ntString #cost:3)
+            (str.retainLc ntString #cost:3)
+            (str.retainL ntString #cost:3)
+            (str.retainN ntString #cost:3)
+            (str.retainLN ntString #cost:3)
+            (str.uppercase ntString #cost:4)
+            (str.lowercase ntString #cost:4)
 
             (ite ntBool ntString ntString)
-      ))
+      ) )
       (ntInt Int (-1 1 2 3 4
             (+ ntInt ntInt)
             (int.neg ntInt)
-            (str.count ntString ntString)
             (list.len ntString)
+            (str.count ntString ntString)
             (str.to.int ntString #cost:2)
-            (date.month ntDate)
-            (date.day ntDate)
-            (date.year ntDate)
-      ))
-      (ntFloat Float (-1.0 0.0 1.0 2.0 5.0
-            (str.to.float ntString #cost:2)
-            (float.+ ntFloat ntFloat #cost:2)
-            (float.neg ntFloat)
-            (float.shl10 ntFloat ntInt)
-            (float.floor ntFloat ntFloat #cost:2)
-            (float.ceil ntFloat ntFloat #cost:2)
-            (float.round ntFloat ntFloat #cost:2)
-      ))
-      (ntDate Int (
-            (date.parse ntString)
-      ))
-      (ntTime Int (15 30 60 3600
-            (time.parse ntString)
-            (time.floor ntTime ntTime)
-            (time.* ntTime ntInt)
       ))
       (ntBool Bool (
-            (int.is0 ntInt #cost:2)
+            (int.is0 ntInt)
             (int.is+ ntInt)
             (int.isN ntInt)
       ))
       (ntList (List String) (
-            (str.split ntString ntString )
+            (str.split ntString ntString)
       ))
-      #ite_limit_rate:8000
+      #data.listsubseq.sample:0
 ))
 
 

@@ -1,4 +1,3 @@
-
 #![allow(unused_imports)] 
 #![allow(unused_mut)] 
 #![feature(int_roundings)]
@@ -35,6 +34,7 @@ use mapped_futures::mapped_futures::MappedFutures;
 use parser::check::CheckProblem;
 use solutions::new_thread;
 use tokio::task::JoinHandle;
+use value::ConstValue;
 
 use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, solutions::{cond_search_thread, Solutions}, value::Type};
 #[derive(Debug, Parser)]
@@ -50,6 +50,8 @@ struct Cli {
     thread: usize,
     #[arg(long)]
     cond_search: bool,
+    #[arg(long)]
+    extract_constants: bool,
     path: String,
     #[arg(short, long)]
     cfg: Option<String>,
@@ -59,6 +61,8 @@ struct Cli {
 
 #[thread_local]
 pub static DEBUG: Cell<bool> = Cell::new(false);
+
+pub static COUNTER: spin::Mutex<[usize; 6]> = spin::Mutex::new([0usize; 6]);
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -102,6 +106,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             }
             cfg = cfg1;
         };
+
+        if args.extract_constants {
+            let constants = problem.examples.extract_constants();
+            for nt in cfg.iter_mut() {
+                if nt.ty == Type::Str {
+                    for c in constants.iter() {
+                        nt.rules.push(ProdRule::Const(ConstValue::Str(c)));
+                    }
+                }
+            }
+        }
+
         info!("CFG: {:?}", cfg);
         let ctx = Context::from_examples(&problem.examples);
         if args.showex {

@@ -7,10 +7,10 @@ use futures::{SinkExt, StreamExt};
 use iset::IntervalMap;
 use itertools::{Either, Itertools};
 use radix_trie::Trie;
-use rc_async::sync::broadcast;
-use tokio::{runtime::Handle, sync::mpsc};
+use spin::Mutex;
 
-use crate::{closure, debg2, expr::Expr, forward::executor::Executor, utils::{nested::RadixTrieN, UnsafeCellExt}, value::{self, Value}};
+use crate::{closure, debg2, expr::Expr, forward::executor::Enumerator, utils::{nested::RadixTrieN, UnsafeCellExt}, value::{self, Value}};
+use async_broadcast::{broadcast, Sender, Receiver};
 
 use super::size::EV;
 pub type Indices = Vec<usize>;
@@ -20,12 +20,12 @@ pub struct Data {
     expected: &'static [&'static str],
     found: RadixTrieN,
     event: RadixTrieN,
-    senders: HashMap<Value, broadcast::Sender<Value>>,
+    senders: HashMap<Value, (Sender<Value>, Receiver<Value>)>,
     size_limit: usize,
 }
 
 impl Data {
-    pub fn new(expected: Value, size_limit: usize) -> Option<UnsafeCell<Self>> {
+    pub fn new(expected: Value, size_limit: usize) -> Option<Mutex<Self>> {
         if let Value::Str(e) = expected {
             Some(Self {
                 expected: e,
@@ -68,7 +68,7 @@ impl Data {
             v.iter().cloned().zip(self.expected.iter().cloned()).all(|(a, b)| b.contains(a))
         } else { false }
     }
-    pub fn update(&mut self, value: Value, exec: &'static Executor) {
+    pub fn update(&mut self, value: Value, exec: &'static Enumerator) {
         if exec.size() > self.size_limit { return; }
         
         if self.expected_contains(value) {
@@ -76,11 +76,11 @@ impl Data {
             let mut senders = Vec::new();
             for v in self.event.superfixes(value.to_str()) {
                 if let Some(sd) = self.senders.get(&v.into()) {
-                    senders.push(sd.clone());
+                    senders.push(sd.0.clone());
                 }
             }
             for sd in senders {
-                sd.send(value);
+                sd.try_broadcast(value);
             }
         }
     }
@@ -89,23 +89,23 @@ impl Data {
         self.found.prefixes(value.to_str()).map(|x| x.into())
     }
     
-    pub fn listen(&mut self, value: Value) -> broadcast::Reciever<Value> {
+    pub fn listen(&mut self, value: Value) -> async_broadcast::Receiver<Value> {
         match self.senders.entry(value) {
-            hash_map::Entry::Occupied(o) => {o.get().reciever()}
+            hash_map::Entry::Occupied(o) => {o.get().1.clone()}
             hash_map::Entry::Vacant(v) => {
-                let sd = v.insert(broadcast::channel());
+                let sd = v.insert(async_broadcast::broadcast(5));
                 self.event.insert(value.to_str());
-                sd.reciever()
+                sd.1.clone()
             }
         }
     }
     
     #[inline(always)]
-    pub async fn listen_for_each<T>(&mut self, value: Value, mut f: impl FnMut(Value) -> Option<T>) -> T {
-        for v in self.lookup_existing(value) {
+    pub async fn listen_for_each<T>(this: & Mutex<Self>, value: Value, mut f: impl FnMut(Value) -> Option<T>) -> T {
+        for v in this.lock().lookup_existing(value) {
             if let Some(t) = f(v) { return t; }
         }
-        let mut rv = self.listen(value);
+        let mut rv = this.lock().listen(value);
         loop {
             if let Some(t) = f(rv.next().await.unwrap()) { return t; }
         }

@@ -22,7 +22,7 @@ impl crate::forward::enumeration::Enumerator1 for ParseTime {
     fn enumerate(
         &self,
         this: &'static ops::Op1Enum,
-        exec: &'static crate::forward::executor::Executor,
+        exec: &'static crate::forward::executor::Enumerator,
         opnt: [usize; 1],
     ) -> Result<(), ()> {
         Ok(())

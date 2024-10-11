@@ -13,7 +13,7 @@ use super::ParsingOp;
 
 impl_basic!(ParseInt, "int.parse");
 impl crate::forward::enumeration::Enumerator1 for ParseInt {
-    fn enumerate(&self, this: &'static ops::Op1Enum, exec: &'static crate::forward::executor::Executor, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
+    fn enumerate(&self, this: &'static ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
 }
 
 impl_op1_opt!(ParseInt, "int.parse",

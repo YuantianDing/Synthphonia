@@ -29,7 +29,7 @@ impl Default for Ite {
     fn default() -> Self { Self::from_config(&Default::default()) }
 }
 impl Enumerator3 for Ite {
-    fn enumerate(&self, this: &'static super::Op3Enum, exec: &'static crate::forward::executor::Executor, nt: [usize; 3]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static super::Op3Enum, exec: &'static crate::forward::executor::Enumerator, nt: [usize; 3]) -> Result<(), ()> {
         if !self.1 { return Ok(())}
         if exec.size() < self.cost() { return Ok(()); }
         let total = exec.size() - self.cost();

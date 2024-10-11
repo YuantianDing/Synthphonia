@@ -1,6 +1,6 @@
 use std::{cmp::{max, min}, future::Future};
 
-use crate::{debg, expr::{cfg::{Cfg, NonTerminal, ProdRule}, context::Context, Expr}, forward::executor::Executor, info, parser::problem, utils::select_all, value::Value};
+use crate::{debg, expr::{cfg::{Cfg, NonTerminal, ProdRule}, context::Context, Expr}, forward::executor::Enumerator, info, parser::problem, utils::fut::select_all, value::Value};
 
 
 use futures::{future::Either, select, FutureExt};
@@ -40,7 +40,7 @@ impl Problem {
 }
 
 pub trait Deducer {
-    async fn deduce(&'static self, exec: &'static Executor, value: Problem) -> &'static Expr;
+    async fn deduce(&'static self, exec: &'static Enumerator, value: Problem) -> &'static Expr;
 }
 
 #[derive(DebugCustom)]
@@ -99,7 +99,7 @@ impl DeducerEnum {
 }
 
 impl Deducer for DeducerEnum {
-    async fn deduce(&'static self, exec: &'static Executor, problem: Problem) -> &'static Expr {
+    async fn deduce(&'static self, exec: &'static Enumerator, problem: Problem) -> &'static Expr {
         let is_pending = exec.data[problem.nt].all_eq.is_pending(problem.value);
         if is_pending { return exec.data[problem.nt].all_eq.acquire(problem.value).await; }
 
@@ -108,7 +108,7 @@ impl Deducer for DeducerEnum {
             DeducerEnum::Simple(a) => a.deduce(exec, problem).await,
             DeducerEnum::List(a) => a.deduce(exec, problem).await,
         };
-        debg!("Subproblem {:?} solved", problem.value);
+        debg!("{exec:?} Subproblem {:?} solved", problem.value);
         exec.data[problem.nt].add_ev(result, problem.value);
         result
     }

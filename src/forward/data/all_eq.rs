@@ -5,28 +5,26 @@ use std::{
 };
 
 use derive_more::{Constructor, Deref, From, Into, TryInto};
-use futures::Future;
-use rc_async::sync::broadcast::MaybeReady;
+use futures::{lock, Future};
+use spin::Mutex;
 
 use crate::{
-    galloc::AllocForAny,
-    expr::Expr,
-    utils::UnsafeCellExt,
-    value::Value, log, info, debg,
+    debg, expr::Expr, galloc::AllocForAny, info, log, utils::{fut::MaybeReady, UnsafeCellExt}, value::Value
 };
 
 #[derive(From, Deref)]
-pub struct Data(UnsafeCell<HashMap<Value, MaybeReady<&'static Expr>>>);
+pub struct Data(Mutex<HashMap<Value, MaybeReady<&'static Expr>>>);
 
 impl Data {
     pub fn new() -> Self { Self(HashMap::new().into()) }
 
     #[inline(always)]
-    pub fn count(&self) -> usize { unsafe{self.as_mut().len()} }
+    pub fn count(&self) -> usize { self.0.lock().len() }
 
     #[inline(always)]
     pub fn set(&self, v: Value, e: Expr) -> Option<&'static Expr> {
-        match unsafe{ self.as_mut().entry(v) } {
+        let mut lock = self.0.lock();
+        match lock.entry(v) {
             hash_map::Entry::Occupied(mut p) => {
                 if p.get().is_ready() {
                     None
@@ -46,8 +44,9 @@ impl Data {
 
     #[inline(always)]
     pub fn set_ref(&self, v: Value, e: &'static Expr) {
+        let mut lock = self.0.lock();
         let mut sd = None;
-        match unsafe{ self.as_mut().entry(v) } {
+        match lock.entry(v) {
             hash_map::Entry::Occupied(mut p) => {
                 if !p.get().is_ready() { sd = p.get_mut().sender(e); }
             }
@@ -55,20 +54,25 @@ impl Data {
                 v.insert(MaybeReady::Ready(e));
             }
         }
-        sd.map(|x| x.send(e));
+        sd.map(|x| x.try_broadcast(e));
     }
 
     #[inline(always)]
     pub async fn acquire(&self, v: Value) -> &'static Expr {
-        match unsafe{ self.as_mut().entry(v) } {
-            hash_map::Entry::Occupied(o) => o.get().get().await,
-            hash_map::Entry::Vacant(v) => v.insert(MaybeReady::pending()).get().await,
-        }
+        let maybe = {
+            let mut lock = self.0.lock();
+            match lock.entry(v) {
+                hash_map::Entry::Occupied(o) => o.get().clone(),
+                hash_map::Entry::Vacant(v) => v.insert(MaybeReady::pending()).clone(),
+            }
+        };
+        maybe.get().await
     }
 
     #[inline(always)]
     pub fn is_pending(&self, v: Value) -> bool {
-        if let Some(a) = unsafe{ self.as_mut().get(&v) } {
+        let lock = self.0.lock();
+        if let Some(a) = lock.get(&v) {
             !a.is_ready()
         } else {
             false
@@ -77,7 +81,8 @@ impl Data {
 
     #[inline(always)]
     pub fn contains<'a>(&'a self, v: Value) -> bool {
-        match unsafe{ self.as_mut().entry(v) } {
+        let mut lock = self.0.lock();
+        match lock.entry(v) {
             hash_map::Entry::Occupied(o) => true,
             hash_map::Entry::Vacant(v) => false,
         }
@@ -99,7 +104,8 @@ impl Data {
     //     }
     // }
     pub fn at(&self, index: Value) -> Option<&'static Expr> {
-        unsafe{ &self.as_mut().get(&index) }.and_then(|x| {
+        let lock = self.0.lock();
+        lock.get(&index).and_then(|x| {
             x.poll_opt()
         })
     }

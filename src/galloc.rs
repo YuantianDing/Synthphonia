@@ -16,7 +16,7 @@ impl<T> T {
         alloc(self)
     }
     #[inline(always)]
-    fn galloc_mut(self) -> &'static T {
+    fn galloc_mut(self) -> &'static mut T {
         alloc_mut(self)
     }
 }

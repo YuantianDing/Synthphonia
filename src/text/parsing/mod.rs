@@ -4,29 +4,24 @@ use std::{collections::{HashMap, HashSet}, cell::UnsafeCell};
 use itertools::Itertools;
 use kv_trie_rs::{Trie, TrieBuilder};
 use derive_more::From;
+use spin::Mutex;
 
-use crate::{debg, expr::{cfg::ProdRule, context::Context, ops::{Op1, Op1Enum}, Expr}, forward::executor::Executor, utils::UnsafeCellExt, value::{consts_to_value, ConstValue, Value}};
+use crate::{debg, expr::{cfg::ProdRule, context::Context, ops::{Op1, Op1Enum}, Expr}, forward::executor::Enumerator, utils::UnsafeCellExt, value::{consts_to_value, ConstValue, Value}};
 
 pub struct TextObjData {
-    trie: UnsafeCell<Vec<(&'static Op1Enum, usize, Trie<u8, ConstValue>)>>,
-    future_exprs: UnsafeCell<Vec<Vec<(Expr, Value)>>>,
+    trie: Vec<(&'static Op1Enum, usize, Trie<u8, ConstValue>)>>,
+    future_exprs: Vec<Vec<(Expr, Value)>>,
 }
 
 impl TextObjData {
-    pub fn trie(&self) -> &mut Vec<(&'static Op1Enum, usize, Trie<u8, ConstValue>)> {
-        unsafe { self.trie.as_mut() }
-    }
-    pub fn future_exprs(&self) -> &mut Vec<Vec<(Expr, Value)>> {
-        unsafe { self.future_exprs.as_mut() }
-    }
-    pub fn enumerate(&self, exec: &'static Executor) -> Result<(), ()> {
-        if exec.size() >= self.future_exprs().len() { return Ok(()); }
-        for (e, v) in self.future_exprs()[exec.size()].drain(0..) {
+    pub fn enumerate(&mut self, exec: &'static Enumerator) -> Result<(), ()> {
+        if exec.size() >= self.future_exprs.len() { return Ok(()); }
+        for (e, v) in self.future_exprs[exec.size()].drain(0..) {
             exec.enum_expr(e, v)?;
         }
         Ok(())
     }
-    pub fn build_trie(exec: &Executor) {
+    pub fn build_trie(exec: &Enumerator) {
         for (nt, ntdata) in exec.cfg.iter().enumerate() {
             for rule in &ntdata.rules {
                 if let ProdRule::Op1(op1, from_nt) = rule {
@@ -38,7 +33,7 @@ impl TextObjData {
                         triebuilder.push(k.as_bytes(), v);
                     }
                     let mut trie = triebuilder.build();
-                    exec.data[*from_nt].to.trie().push((op1, nt, trie));
+                    exec.data[*from_nt].to.lock().trie.push((op1, nt, trie));
                 }
             }
         }
@@ -50,22 +45,22 @@ impl TextObjData {
             future_exprs: Vec::new().into(),
         }
     }
-    pub fn update(&self, exec: &'static Executor, e: &'static Expr, v: Value) {
+    pub fn update(&self, exec: &'static Enumerator, e: &'static Expr, v: Value) {
         if let Value::Str(inner) = v {
             for (scan, nt,  v) in self.read_to(inner) {
                 let expr = Expr::Op1(scan, e);
                 let value = consts_to_value(v);
-                let target = exec.data[nt].to.future_exprs();
+                let target = &mut exec.data[nt].to.lock();
                 let size = exec.size() + scan.cost();
-                while target.len() <= size {
-                    target.push(Vec::new());
+                while target.future_exprs.len() <= size {
+                    target.future_exprs.push(Vec::new());
                 }
-                target[size].push((expr, value));
+                target.future_exprs[size].push((expr, value));
             }
         }
     }
     pub fn read_to(&self, input: &'static [&'static str]) -> impl Iterator<Item= (&'static Op1Enum, usize, Vec<ConstValue>)> + '_ {
-        self.trie().iter().flat_map(|(scan, nt, trie)| {
+        self.trie.iter().flat_map(|(scan, nt, trie)| {
             if trie.exact_match(input[0].as_bytes()) {
                 let mut value = vec![trie.get(input[0].as_bytes()).unwrap().clone()];
                 

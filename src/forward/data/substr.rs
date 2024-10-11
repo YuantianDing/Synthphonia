@@ -6,9 +6,10 @@ use derive_more::{Deref, DerefMut};
 use futures::{SinkExt, StreamExt};
 use iset::IntervalMap;
 use itertools::{Either, Itertools};
-use rc_async::sync::broadcast;
+use spin::Mutex;
 
-use crate::{closure, expr::Expr, forward::executor::Executor, never, utils::{nested::{IntervalTreeN, NestedIntervalTree}, UnsafeCellExt}, value::Value};
+use crate::{closure, expr::Expr, forward::executor::Enumerator, never, utils::{nested::{IntervalTreeN, NestedIntervalTree}, UnsafeCellExt}, value::Value};
+use async_broadcast::{broadcast, Sender, Receiver};
 
 use super::size::EV;
 
@@ -16,13 +17,13 @@ pub struct Data {
     expected: &'static [&'static str],
     found: IntervalTreeN,
     event: IntervalTreeN,
-    senders: HashMap<Value, broadcast::Sender<Value>>,
+    senders: HashMap<Value, (Sender<Value>, Receiver<Value>)>,
     size_limit: usize,
     exceeded_size_limit: bool,
 }
 
 impl Data {
-    pub fn new(expected: Value, size_limit: usize) -> Option<UnsafeCell<Self>> {
+    pub fn new(expected: Value, size_limit: usize) -> Option<Mutex<Self>> {
         if let Value::Str(e) = expected {
             Some(Self {
                 expected: e,
@@ -40,7 +41,7 @@ impl Data {
         } else { false }
     }
     
-    pub fn update(&mut self, value: Value, exec: &'static Executor) {
+    pub fn update(&mut self, value: Value, exec: &'static Enumerator) {
         if exec.size() > self.size_limit  { return; }
         if self.expected_contains(value) {
             self.found.insert(value.to_str());
@@ -48,11 +49,11 @@ impl Data {
             let mut senders = Vec::new();
             for v in self.event.superstrings(value.to_str()) {
                 if let Some(sd) = self.senders.get(&v.into()) {
-                    senders.push(sd.clone());
+                    senders.push(sd.0.clone());
                 }
             }
             for sd in senders {
-                sd.send(value);
+                sd.try_broadcast(value);
             }
         }
         
@@ -62,24 +63,27 @@ impl Data {
         self.found.substrings(value.to_str()).map(|x| x.into())
     }
     
-    pub fn listen(&mut self, value: Value) -> Option<broadcast::Reciever<Value>> {
+    pub fn listen(&mut self, value: Value) -> Option<Receiver<Value>> {
         if !self.expected_contains(value) { return None }
         match self.senders.entry(value) {
-            hash_map::Entry::Occupied(o) => {Some(o.get().reciever())}
+            hash_map::Entry::Occupied(o) => {Some(o.get().1.clone())}
             hash_map::Entry::Vacant(v) => {
-                let sd = v.insert(broadcast::channel());
+                let sd = v.insert(async_broadcast::broadcast(5));
                 self.event.insert_first_occur(value.to_str());
-                Some(sd.reciever())
+                Some(sd.1.clone())
             }
         }
 
     }
 
     #[inline(always)]
-    pub async fn listen_for_each<T>(&mut self, value: Value, mut f: impl FnMut(Value) -> Option<T>) -> T {
-        if let Some(mut rv) = self.listen(value) {
-            for v in self.lookup_existing(value) {
-                if let Some(t) = f(v) { return t; }
+    pub async fn listen_for_each<T>(this: &Mutex<Self>, value: Value, mut f: impl FnMut(Value) -> Option<T>) -> T {
+        let rv: Option<Receiver<Value>> = { this.lock().listen(value) } ;
+        if let Some(mut rv) = rv {
+            {
+                for v in this.lock().lookup_existing(value) {
+                    if let Some(t) = f(v) { return t; }
+                }
             }
             loop {
                 if let Some(t) = f(rv.next().await.unwrap()) { return t; }

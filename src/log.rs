@@ -3,7 +3,7 @@ use std::cell::Cell;
 
 
 thread_local! {
-    pub static LOGLEVEL: Cell<u8>  = Cell::new(2);
+    pub static LOGLEVEL: Cell<u8>  = Cell::new(12);
 }
 thread_local! {
     pub static INDENT: RefCell<String> = RefCell::new(String::from(""));

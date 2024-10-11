@@ -106,7 +106,7 @@ impl Default for FormatTime {
 }
 
 impl Enumerator1 for FormatTime {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Executor, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
+    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
 impl crate::expr::ops::Op1 for FormatTime {

@@ -35,12 +35,15 @@ regex = "1.10.2"
 serde = { version = "1.0.183", features = ["derive"] }
 smallvec = "1.11.1"
 spin = "0.9.8"
-tokio = { version = "1.37.0", features = ["full", "rt"] }
 topological-sort = "0.2.2"
 you-can = "0.0.14"
-rc_async = { path = "../rc_async"}
 radix_trie = "0.2.1"
 counter = "0.6.0"
+smol = "2.0.2"
+async-broadcast = "0.7.1"
+async-oneshot = "0.5.9"
+boxcar = "0.2.6"
+async-io = "2.3.4"
 
 [profile.release]
 debug = true

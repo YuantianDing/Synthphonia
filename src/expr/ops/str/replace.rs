@@ -29,7 +29,7 @@ impl Default for Replace {
 }
 
 impl Enumerator3 for Replace {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op3Enum, exec: &'static crate::forward::executor::Executor, nt: [usize; 3]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static crate::expr::ops::Op3Enum, exec: &'static crate::forward::executor::Enumerator, nt: [usize; 3]) -> Result<(), ()> {
         if exec.size() < self.cost() { return Ok(()); }
         let total = exec.size() - self.cost();
         for (i, (e2, v2)) in exec.data[nt[0]].size.get_all_under(min(total, self.1)) {

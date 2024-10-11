@@ -4,16 +4,17 @@ use super::*;
 #[macro_export]
 macro_rules! for_all_op1 {
     () => {
-        _do!(Len ToInt ToStr Neg IsPos IsZero IsNatural RetainLl RetainLc RetainN RetainL RetainLN Uppercase Lowercase ParseDate AsMonth AsDay AsYear AsWeekDay ParseTime FormatFloat
-            ParseInt 
-            FormatInt
-            ParseMonth
-            ParseWeekday
-            FormatTime
-            FormatMonth
-            FormatWeekday
-            FormatFloat
-            ParseFloat
+        _do!(Len ToInt ToStr Neg IsPos IsZero IsNatural RetainLl RetainLc RetainN RetainL RetainLN Uppercase Lowercase AsMonth AsDay AsYear AsWeekDay 
+            // ParseDate ParseTime FormatFloat
+            // ParseInt 
+            // FormatInt
+            // ParseMonth
+            // ParseWeekday
+            // FormatTime
+            // FormatMonth
+            // FormatWeekday
+            // FormatFloat
+            // ParseFloat
             FNeg
             FAbs
             FIsPos

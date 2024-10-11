@@ -71,7 +71,7 @@ impl Default for FormatFloat {
 }
 
 impl Enumerator1 for FormatFloat {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Executor, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
+    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
 crate::impl_formatop!(FormatFloat, Float, |this: &FormatFloat| this.cost);

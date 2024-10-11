@@ -1,13 +1,13 @@
 use std::{collections::VecDeque, time::{self, Duration, Instant}};
 
-use futures::StreamExt;
-use tokio::{select, task::JoinHandle};
+use futures::{select, FutureExt, StreamExt};
 
 use itertools::Itertools;
 use mapped_futures::mapped_futures::MappedFutures;
 use rand::Rng;
 use rand::seq::SliceRandom;
-use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr, Expression}, forward::executor::Executor, galloc::{self, AllocForAny}, info, never, tree_learning::{bits::BoxSliceExt, tree_learning, Bits}};
+use smol::Task;
+use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr, Expression}, forward::executor::Enumerator, galloc::{self, AllocForAny}, info, never, tree_learning::{bits::BoxSliceExt, tree_learning, Bits}};
 
 
 
@@ -24,7 +24,7 @@ pub struct Solutions {
     ctx: Context,
     solutions: Vec<(&'static Expr, Bits)>,
     solved_examples: Bits,
-    pub threads: MappedFutures<Vec<usize>, JoinHandle<Expression>>,
+    pub threads: MappedFutures<Vec<usize>, Task<Expression>>,
     start_time: Instant,
 }
 
@@ -57,7 +57,7 @@ impl Solutions {
             for k in keys {
                 if k.iter().all(|i| b.get(*i)) {
                     if let Some(a) = self.threads.remove(&k) {
-                        a.abort();
+                        smol::block_on(a.cancel());
                         info!("Interupting Thread of {k:?}");
                         self.create_new_thread();
                     }
@@ -125,15 +125,15 @@ impl Solutions {
         loop {
             select! {
                 result = self.threads.next() => {
-                    let (k,v) = result.unwrap();
-                    let v = v.expect("Thread Execution Error").alloc_local();
+                    let (k, v) = result.unwrap();
+                    let v = v.alloc_local();
                     info!("Found a solution {:?} with examples {:?}.", v, k);
                     if let Some(e) = self.add_new_solution(v) {
                         return e;
                     }
                     self.create_new_thread();
                 }
-                _ = tokio::time::sleep(Duration::from_millis(2000)) => {
+                _ = FutureExt::fuse(async_io::Timer::after(Duration::from_millis(2000))) => {
                     if let Some(e) = self.generate_result(self.threads.len() != 0) { return e; }
                 }
             }
@@ -141,24 +141,24 @@ impl Solutions {
     }
 }
 
-pub fn new_thread(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
-    tokio::spawn(async move {
-        let exec = Executor::new(ctx, cfg);
+pub fn new_thread(cfg: Cfg, ctx: Context) -> Task<Expression> {
+    smol::spawn(async move {
+        let exec = Enumerator::new(ctx, cfg).galloc_mut();
         info!("Deduction Configuration: {:?}", exec.deducers);
         let result = exec.solve_top_blocked().to_expression();
         result
     })
 }
 
-pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
+pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> Task<Expression> {
     cfg.config.cond_search = true;
     new_thread(cfg, ctx)
 }
 
-pub fn new_thread_with_limit(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
-    tokio::spawn(async move {
+pub fn new_thread_with_limit(cfg: Cfg, ctx: Context) -> Task<Expression> {
+    smol::spawn(async move {
         if let Some(p) = (move || {
-            let result = Executor::new(ctx, cfg).solve_top_with_limit().map(|e| e.to_expression());
+            let result = Enumerator::new(ctx, cfg).galloc_mut().solve_top_with_limit().map(|e| e.to_expression());
             result
         })() {
             p

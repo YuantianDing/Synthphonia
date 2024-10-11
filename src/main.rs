@@ -21,19 +21,18 @@ pub mod forward;
 pub mod backward;
 pub mod tree_learning;
 pub mod solutions;
-pub mod text;
+// pub mod text;
 use std::{borrow::BorrowMut, cell::Cell, cmp::min, fs, process::exit};
 
 use clap::Parser;
 use expr::{cfg::Cfg, context::Context, Expr};
-use forward::executor::Executor;
+use forward::executor::Enumerator;
 use futures::{stream::FuturesUnordered, StreamExt};
 use galloc::AllocForAny;
 use itertools::Itertools;
 use mapped_futures::mapped_futures::MappedFutures;
 use parser::check::CheckProblem;
 use solutions::new_thread;
-use tokio::task::JoinHandle;
 use value::ConstValue;
 
 use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, solutions::{cond_search_thread, Solutions}, value::Type};
@@ -64,8 +63,7 @@ pub static DEBUG: Cell<bool> = Cell::new(false);
 
 pub static COUNTER: spin::Mutex<[usize; 6]> = spin::Mutex::new([0usize; 6]);
 
-#[tokio::main(flavor = "multi_thread")]
-async fn main() -> Result<(), Box<dyn std::error::Error>>{
+fn main() -> Result<(), Box<dyn std::error::Error>>{
     let args = Cli::parse();
     log::set_log_level(args.verbose + 2);
     DEBUG.set(args.debug);
@@ -131,11 +129,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             if args.cond_search {
                 cfg.config.cond_search = true;
             }
-            let exec = Executor::new(ctx, cfg);
+            let mut exec = Enumerator::new(ctx, cfg).galloc_mut();
             info!("Deduction Configuration: {:?}", exec.deducers);
-            let result = exec.solve_top_blocked();
-            let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
-            println!("{}", func);
+            smol::block_on(async {
+                let result = exec.solve_top_blocked();
+                let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
+                println!("{}", func);
+                // exit(0);
+            })
         } else {
             let mut solutions = Solutions::new(cfg.clone(), ctx.clone());
 
@@ -144,10 +145,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 solutions.create_new_thread();
             }
 
-            let result = solutions.solve_loop().await;
-            let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
-            println!("{}", func);
-            exit(0);
+            smol::block_on(async {
+                let result = solutions.solve_loop().await;
+                let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
+                println!("{}", func);
+                // exit(0);
+            })
         }
     }
     Ok(())
@@ -155,3 +158,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 
 
+#[cfg(test)]
+mod test {
+    use std::{thread, time::Duration};
+    use smol::future;
+
+    use smol::{Executor, Timer};
+
+    struct A();
+    impl Drop for A {
+        fn drop(&mut self) {
+            println!("Dropped");
+        }
+    }
+    #[test]
+    fn test() {
+        let ex = Executor::new();
+    
+        // Spawn a deamon future.
+        let task = ex.spawn(async {
+            let a = A();
+            loop {
+                println!("Even though I'm in an infinite loop, you can still cancel me!");
+                Timer::after(Duration::from_secs(1)).await;
+            }
+        });
+        
+        // Run an executor thread.
+        thread::spawn(move || future::block_on(ex.run(future::pending::<()>())));
+        
+        future::block_on(async {
+            Timer::after(Duration::from_secs(3)).await;
+            task.cancel().await;
+        });
+    }
+}

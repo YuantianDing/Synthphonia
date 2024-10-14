@@ -24,7 +24,7 @@ impl Bridge {
     pub fn abort_all(&self) {
         let vec = std::mem::replace(&mut *self.0.lock(), Vec::new());
         for (h, p) in vec {
-            smol::block_on(h.cancel());
+            drop(h);
         }
     }
     pub fn check(&self) {

@@ -129,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
             if args.cond_search {
                 cfg.config.cond_search = true;
             }
-            let mut exec = Enumerator::new(ctx, cfg).galloc_mut();
+            let mut exec = Enumerator::new(ctx, cfg);
             info!("Deduction Configuration: {:?}", exec.deducers);
             smol::block_on(async {
                 let result = exec.solve_top_blocked();
@@ -189,7 +189,7 @@ mod test {
         
         future::block_on(async {
             Timer::after(Duration::from_secs(3)).await;
-            task.cancel().await;
+            drop(task);
         });
     }
 }

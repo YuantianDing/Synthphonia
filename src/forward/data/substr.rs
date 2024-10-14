@@ -1,6 +1,6 @@
 
 
-use std::{cell::UnsafeCell, collections::{hash_map, HashMap, HashSet}, iter, ops::Range};
+use std::{cell::UnsafeCell, collections::{hash_map, HashMap, HashSet}, iter, ops::Range, sync::Arc};
 
 use derive_more::{Deref, DerefMut};
 use futures::{SinkExt, StreamExt};
@@ -41,7 +41,7 @@ impl Data {
         } else { false }
     }
     
-    pub fn update(&mut self, value: Value, exec: &'static Enumerator) {
+    pub fn update(&mut self, value: Value, exec: Arc<Enumerator>) {
         if exec.size() > self.size_limit  { return; }
         if self.expected_contains(value) {
             self.found.insert(value.to_str());

@@ -1,6 +1,6 @@
 
 
-use std::pin::pin;
+use std::{pin::pin, sync::Arc};
 
 
 use smol::Task;
@@ -18,14 +18,15 @@ pub struct ListDeducer {
 }
 
 impl Deducer for ListDeducer {
-    async fn deduce(&'static self, exec: &'static crate::forward::executor::Enumerator, prob: Problem) -> &'static crate::expr::Expr {
+    async fn deduce(&'static self, exec: Arc<Enumerator>, prob: Problem) -> &'static crate::expr::Expr {
         debg!("{exec:?} Deducing subproblem: {} {:?}", exec.cfg[self.nt].name, prob.value);
-        let task = exec.data[self.nt].all_eq.acquire(prob.value);
+        let exec2 = exec.clone();
+        let task = exec2.data[self.nt].all_eq.acquire(prob.value);
 
         let futures = HandleRcVec::new();
-        let map_event = len::Data::listen_for_each(exec.data[self.nt].len.as_ref().unwrap(), prob.value, closure! { clone futures, clone prob; move |delimiter: Value| {
+        let map_event = len::Data::listen_for_each(exec2.data[self.nt].len.as_ref().unwrap(), prob.value, closure! { clone futures, clone prob; move |delimiter: Value| {
                 if self.map.is_some() {
-                    futures.extend_iter(self.map(exec, prob, delimiter).into_iter());
+                    futures.extend_iter(self.map(exec.clone(), prob, delimiter).into_iter());
                 }
                 None::<&'static Expr>
         }});
@@ -37,7 +38,7 @@ impl Deducer for ListDeducer {
 
 impl ListDeducer {
     #[inline]
-    pub fn map(&'static self, exec: &'static Enumerator, mut prob: Problem, list: Value) -> Option<Task<&'static Expr>> {
+    pub fn map(&'static self, exec: Arc<Enumerator>, mut prob: Problem, list: Value) -> Option<Task<&'static Expr>> {
         if prob.used_cost >= 6 { return None; }
         let p = prob.value.to_liststr();
         if p.iter().all(|x| x.len() <= 2) {  return None; }

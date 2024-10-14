@@ -1,4 +1,4 @@
-use std::{cell::{RefCell, UnsafeCell}, cmp::{max, min}, collections::{HashMap, HashSet}, pin::{pin, Pin}, rc::Rc, sync::Arc, task::{Poll, Waker}};
+use std::{array, cell::{RefCell, UnsafeCell}, cmp::{max, min}, collections::{HashMap, HashSet}, pin::{pin, Pin}, rc::Rc, sync::Arc, task::{Poll, Waker}};
 
 use bumpalo::collections::CollectIn;
 use figment::util::diff_paths;
@@ -58,7 +58,7 @@ impl<T: Unpin> HandleRcVec<T> {
     pub fn cancel(&mut self) -> () {
         let v = std::mem::replace(&mut *self.0.lock(), Vec::new());
         for p in v {
-            smol::block_on(p.cancel());
+            drop(p);
         }
     }
 }
@@ -80,30 +80,31 @@ impl StrDeducer {
 }
 
 impl Deducer for StrDeducer {
-    async fn deduce(&'static self, exec: &'static Enumerator, prob: Problem) -> &'static crate::expr::Expr {
+    async fn deduce(&'static self, exec: Arc<Enumerator>, prob: Problem) -> &'static crate::expr::Expr {
         assert!(self.nt == prob.nt);
         let this = self;
         let mut eq = pin!(exec.data[self.nt].all_eq.acquire(prob.value));
         debg!("{exec:?} Deducing subproblem: {} {:?}", self.nt, prob.value);
+        let [exec2, exec3, exec4, exec5] = array::from_fn(|_| exec.clone());
         if let Poll::Ready(r) = futures::poll!(&mut eq) { return r; }
 
         // let mut delimiterset = HashSet::<Vec<&'static str>>::new();
         let futures = HandleRcVec::new();
 
-        let substr_event = substr::Data::listen_for_each(exec.data[self.nt].substr.as_ref().unwrap(), prob.value, closure! { clone futures, clone prob; move |delimiter: Value| {
+        let substr_event = substr::Data::listen_for_each(exec2.data[self.nt].substr.as_ref().unwrap(), prob.value, closure! { clone futures, clone prob; move |delimiter: Value| {
             // let vec = delimiter.to_str().iter().zip(prob.value.to_str().iter()).map(|(a, b)| if b.contains(a) { *a } else { &"" }).collect_vec();
             // if delimiterset.insert(vec) {
-                futures.extend_iter(this.split1(exec, prob, delimiter).into_iter());
-                futures.extend_iter(this.join(exec, prob, delimiter).into_iter());
+                futures.extend_iter(this.split1(exec4.clone(), prob, delimiter).into_iter());
+                futures.extend_iter(this.join(exec4.clone(), prob, delimiter).into_iter());
             // }
             None::<&'static Expr>
         }});
         
         // let mut prefixset = HashSet::<Vec<&'static str>>::new();
-        let prefix_event = prefix::Data::listen_for_each(exec.data[self.nt].prefix.as_ref().unwrap(), prob.value, closure! { clone futures, clone prob; move |prefix: Value| {
+        let prefix_event = prefix::Data::listen_for_each(exec2.data[self.nt].prefix.as_ref().unwrap(), prob.value, closure! { clone futures, clone prob; move |prefix: Value| {
             // let vec = prefix.to_str().iter().zip(prob.value.to_str().iter()).map(|(a, b)| if b.starts_with(a) { *a } else { &"" }).collect_vec();
             // if prefixset.insert(vec) {
-                futures.extend_iter(this.ite_concat(exec, prob, prefix).into_iter());
+                futures.extend_iter(this.ite_concat(exec5.clone(), prob, prefix).into_iter());
             // }
             None::<&'static Expr>
         }});
@@ -113,8 +114,8 @@ impl Deducer for StrDeducer {
             
         let map_event = pin!(closure! {clone futures; async move {
             if join_empty_str_cond {
-                let v = len::Data::listen_once(exec.data[self.join.1].len.as_ref().unwrap(), prob.value).await;
-                futures.extend_iter(this.join_empty_str(exec, prob).into_iter());
+                let v = len::Data::listen_once(exec3.clone().data[self.join.1].len.as_ref().unwrap(), prob.value).await;
+                futures.extend_iter(this.join_empty_str(exec3, prob).into_iter());
             } 
             never!(&'static Expr)
         }});
@@ -168,7 +169,7 @@ impl StrDeducer {
     //     self.decay2(3)
     // }
     #[inline]
-    fn split1(&'static self, exec: &'static Enumerator, mut prob: Problem, delimiter: Value) -> Option<Task<&'static Expr>> {
+    fn split1(&'static self, exec: Arc<Enumerator>, mut prob: Problem, delimiter: Value) -> Option<Task<&'static Expr>> {
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();
         let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
@@ -182,8 +183,8 @@ impl StrDeducer {
 
             debg!("{exec:?} StrDeducer::split1 {v:?} {delimiter:?}");
 
-            let left = exec.solve_task(prob.with_value(a)).await;
-            let right = exec.solve_task(prob.with_value(b)).await;
+            let left = exec.clone().solve_task(prob.with_value(a)).await;
+            let right = exec.clone().solve_task(prob.with_value(b)).await;
             
             let mut result = exec.data[prob.nt].all_eq.get(delimiter.into());
             if self.ite_concat.1 != usize::MAX {
@@ -199,10 +200,10 @@ impl StrDeducer {
         }))
     }
     #[inline]
-    pub async fn generate_condition(&'static self, exec: &'static Enumerator, prob: Problem, result: &'static Expr) -> &'static Expr {
+    pub async fn generate_condition(&'static self, exec: Arc<Enumerator>, prob: Problem, result: &'static Expr) -> &'static Expr {
         if prob.value.is_all_true() { return result; }
-        let left = pin!(exec.solve_task(prob.clone()));
-        let right = pin!(exec.solve_task(prob.clone().with_value(prob.value.bool_not())));
+        let left = pin!(exec.clone().solve_task(prob.clone()));
+        let right = pin!(exec.clone().solve_task(prob.clone().with_value(prob.value.bool_not())));
         let cond = futures::future::select(left, right).await;
         match cond {
             futures::future::Either::Left((c, _)) => 
@@ -212,7 +213,7 @@ impl StrDeducer {
         }
     }
     #[inline]
-    pub fn ite_concat(&'static self, exec: &'static Enumerator, mut prob: Problem, prefix: Value) -> Option<Task<&'static Expr>> {
+    pub fn ite_concat(&'static self, exec: Arc<Enumerator>, mut prob: Problem, prefix: Value) -> Option<Task<&'static Expr>> {
         let v: &[&str] = prob.value.to_str();
         let prefix: &[&str] = prefix.to_str();
         let start_count: usize = v.iter().zip(prefix.iter()).map(|(x, y)| if x.starts_with(*y) { y.len() } else { 0 }).sum();
@@ -227,10 +228,10 @@ impl StrDeducer {
             
             // exec.waiting_tasks().inc_cost(&mut prob, 1).await;
 
-            let right = exec.solve_task(prob.with_value(b)).await;
+            let right = exec.clone().solve_task(prob.with_value(b)).await;
             
-            let mut result = exec.data[prob.nt].all_eq.get(prefix.into());
-            result = self.generate_condition(exec, prob.with_nt(self.ite_concat.1, a), result).await;
+            let mut result = exec.clone().data[prob.nt].all_eq.get(prefix.into());
+            result = self.generate_condition(exec.clone(), prob.with_nt(self.ite_concat.1, a), result).await;
             if !b.is_all_empty() {
                 result = expr!(Concat {result} {right}).galloc();
             }
@@ -239,7 +240,7 @@ impl StrDeducer {
     }
 
     #[inline]
-    fn join(&'static self, exec: &'static Enumerator, mut prob: Problem, delimiter: Value) -> Option<Task<&'static Expr>> {
+    fn join(&'static self, exec: Arc<Enumerator>, mut prob: Problem, delimiter: Value) -> Option<Task<&'static Expr>> {
         if prob.used_cost >= 6 { return None; }
 
         let delimiter = delimiter.to_str();
@@ -254,14 +255,14 @@ impl StrDeducer {
             let a = value_split(v, delimiter);
             debg!("{exec:?} StrDeducer::join {v:?} {delimiter:?}");
 
-            let list = exec.solve_task(prob.with_nt(self.join.1, a)).await;
+            let list = exec.clone().solve_task(prob.with_nt(self.join.1, a)).await;
             
             let mut delim = exec.data[prob.nt].all_eq.get(delimiter.into());
             expr!(Join {list} {delim}).galloc()
         }))
     }
     #[inline]
-    fn join_empty_str(&'static self, exec: &'static Enumerator, mut prob: Problem) -> Option<Task<&'static Expr>> {
+    fn join_empty_str(&'static self, exec: Arc<Enumerator>, mut prob: Problem) -> Option<Task<&'static Expr>> {
         debg!("{exec:?} StrDeducer::join_empty_str {:?}", prob.value);
 
         Some(smol::spawn(async move {
@@ -282,7 +283,7 @@ impl StrDeducer {
     //     expr!(Join {list} {delim}).galloc()
     // }
     // #[inline]
-    // async fn fmt(&self, mut problem: Problem, formatter: &(Op1Enum, usize), exec: &'static Enumerator) -> &'static Expr {
+    // async fn fmt(&self, mut problem: Problem, formatter: &(Op1Enum, usize), exec: Arc<Enumerator>) -> &'static Expr {
     //     let v = problem.value.to_str();
     //     if let Some((op, a, b, cond)) = formatter.0.format_all(v) {
     //         debg!("StrDeducer::fmt {v:?} {formatter:?}");

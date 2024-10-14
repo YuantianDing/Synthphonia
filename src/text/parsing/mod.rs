@@ -14,7 +14,7 @@ pub struct TextObjData {
 }
 
 impl TextObjData {
-    pub fn enumerate(&mut self, exec: &'static Enumerator) -> Result<(), ()> {
+    pub fn enumerate(&mut self, exec: Arc<Enumerator>) -> Result<(), ()> {
         if exec.size() >= self.future_exprs.len() { return Ok(()); }
         for (e, v) in self.future_exprs[exec.size()].drain(0..) {
             exec.enum_expr(e, v)?;
@@ -45,7 +45,7 @@ impl TextObjData {
             future_exprs: Vec::new().into(),
         }
     }
-    pub fn update(&self, exec: &'static Enumerator, e: &'static Expr, v: Value) {
+    pub fn update(&self, exec: Arc<Enumerator>, e: &'static Expr, v: Value) {
         if let Value::Str(inner) = v {
             for (scan, nt,  v) in self.read_to(inner) {
                 let expr = Expr::Op1(scan, e);

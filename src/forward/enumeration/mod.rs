@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 
@@ -13,17 +15,17 @@ use super::executor::Enumerator;
 
 pub trait Enumerator1 : Op1 {
     #[inline(always)]
-    fn enumerate(&self, this: &'static Op1Enum, exec: &'static Enumerator, opnt: [usize; 1]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> {
         enumerate1(self, this, exec, opnt)
     }
 }
 #[inline(always)]
-pub fn enumerate1(s: &impl Op1, this: &'static Op1Enum, exec: &'static Enumerator, opnt: [usize; 1]) -> Result<(), ()> {
+pub fn enumerate1(s: &impl Op1, this: &'static Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> {
     if exec.size() <= s.cost() { return Ok(()); }
     for (e, v) in exec.data[opnt[0]].size.get_all(exec.size() - s.cost()) {
         let expr = Expr::Op1(this, *e);
         if let (true, value) = s.try_eval(*v) {
-            exec.enum_expr(expr, value)?;
+            exec.clone().enum_expr(expr, value)?;
         }
     }
     Ok(())
@@ -31,19 +33,19 @@ pub fn enumerate1(s: &impl Op1, this: &'static Op1Enum, exec: &'static Enumerato
 
 pub trait Enumerator2 : Op2 {
     #[inline(always)]
-    fn enumerate(&self, this: &'static Op2Enum, exec: &'static Enumerator, nt: [usize; 2]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static Op2Enum, exec: Arc<Enumerator>, nt: [usize; 2]) -> Result<(), ()> {
         enumerate2(self, this, exec, nt)
     }
 }
 #[inline(always)]
-pub fn enumerate2(s: &impl Op2, this: &'static Op2Enum, exec: &'static Enumerator, nt: [usize; 2]) -> Result<(), ()> {
+pub fn enumerate2(s: &impl Op2, this: &'static Op2Enum, exec: Arc<Enumerator>, nt: [usize; 2]) -> Result<(), ()> {
     if exec.size() <= s.cost() { return Ok(()); }
     let total = exec.size() - s.cost();
     for (i, (e1, v1)) in exec.data[nt[0]].size.get_all_under(total) {
         for (e2, v2) in exec.data[nt[1]].size.get_all(total - i) {
             let expr = Expr::Op2(this, *e1, *e2);
             if let (true, value) = s.try_eval(*v1, *v2) {
-                exec.enum_expr(expr, value)?;
+                exec.clone().enum_expr(expr, value)?;
             }
         }
     }
@@ -52,12 +54,12 @@ pub fn enumerate2(s: &impl Op2, this: &'static Op2Enum, exec: &'static Enumerato
 
 pub trait Enumerator3 : Op3 {
     #[inline(always)]
-    fn enumerate(&self, this: &'static Op3Enum, exec: &'static Enumerator, nt: [usize; 3]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static Op3Enum, exec: Arc<Enumerator>, nt: [usize; 3]) -> Result<(), ()> {
         enumerate3(self, this, exec, nt)
     }
 }
 #[inline(always)]
-pub fn enumerate3(s: &impl Op3, this: &'static Op3Enum, exec: &'static Enumerator, nt: [usize; 3]) -> Result<(), ()> {
+pub fn enumerate3(s: &impl Op3, this: &'static Op3Enum, exec: Arc<Enumerator>, nt: [usize; 3]) -> Result<(), ()> {
     if exec.size() < s.cost() { return Ok(()); }
     let total = exec.size() - s.cost();
     for (i, (e1, v1)) in exec.data[nt[0]].size.get_all_under(total) {
@@ -65,7 +67,7 @@ pub fn enumerate3(s: &impl Op3, this: &'static Op3Enum, exec: &'static Enumerato
             for (e3, v3) in exec.data[nt[2]].size.get_all(total - i - j) {
                 let expr = Expr::Op3(this, e1, e2, e3);
                 if let (true, value) = s.try_eval(*v1, *v2, *v3) {
-                    exec.enum_expr(expr, value)?;
+                    exec.clone().enum_expr(expr, value)?;
                 }
             }
         } 
@@ -75,7 +77,7 @@ pub fn enumerate3(s: &impl Op3, this: &'static Op3Enum, exec: &'static Enumerato
 
 impl Enumerator1 for Op1Enum {
     #[inline]
-    fn enumerate(&self, this: &'static Op1Enum, exec: &'static Enumerator, opnt: [usize; 1]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> {
         macro_rules! _do {($($op:ident)*) => {$(
             if let Self::$op(a) = self {
                 return a.enumerate(this, exec, opnt);
@@ -88,7 +90,7 @@ impl Enumerator1 for Op1Enum {
 
 impl Enumerator2 for Op2Enum {
     #[inline]
-    fn enumerate(&self, this: &'static Op2Enum, exec: &'static Enumerator, opnt: [usize; 2]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static Op2Enum, exec: Arc<Enumerator>, opnt: [usize; 2]) -> Result<(), ()> {
         macro_rules! _do {($($op:ident)*) => {$(
             if let Self::$op(a) = self {
                 return a.enumerate(this, exec, opnt);
@@ -101,7 +103,7 @@ impl Enumerator2 for Op2Enum {
 
 impl Enumerator3 for Op3Enum {
     #[inline]
-    fn enumerate(&self, this: &'static Op3Enum, exec: &'static Enumerator, opnt: [usize; 3]) -> Result<(), ()> {
+    fn enumerate(&self, this: &'static Op3Enum, exec: Arc<Enumerator>, opnt: [usize; 3]) -> Result<(), ()> {
         macro_rules! _do {($($op:ident)*) => {$(
             if let Self::$op(a) = self {
                 return a.enumerate(this, exec, opnt);
@@ -114,17 +116,17 @@ impl Enumerator3 for Op3Enum {
 
 #[extension(pub trait ProdRuleEnumerate)]
 impl ProdRule {
-    fn enumerate(&self, exec: &'static Enumerator) -> Result<(), ()> {
+    fn enumerate(&self, exec: Arc<Enumerator>) -> Result<(), ()> {
         match self {
             ProdRule::Const(c) => {
                 if exec.size() == 1 {
-                    exec.enum_expr(Expr::Const(*c), c.value(exec.ctx.len()))?;
+                    exec.clone().enum_expr(Expr::Const(*c), c.value(exec.ctx.len()))?;
                 }
                 Ok(())
             }
             ProdRule::Var(v) => {
                 if exec.size() == 1 {
-                    exec.enum_expr(Expr::Var(*v), exec.ctx.get(*v).unwrap().clone())?;
+                    exec.clone().enum_expr(Expr::Var(*v), exec.ctx.get(*v).unwrap().clone())?;
                 }
                 Ok(())
             }

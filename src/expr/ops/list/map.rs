@@ -1,8 +1,10 @@
 use std::cmp::min;
 use std::ops::Not;
+use std::sync::Arc;
 
 use crate::expr::context::Context;
 use crate::expr::Expr;
+use crate::forward::executor::Enumerator;
 use crate::galloc::{AllocForExactSizeIter, AllocForStr, TryAllocForExactSizeIter};
 use crate::parser::config::Config;
 use crate::utils::F64;
@@ -44,7 +46,7 @@ impl Default for Map {
 }
 
 impl crate::forward::enumeration::Enumerator1 for Map {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
+    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
 impl crate::expr::ops::Op1 for Map {

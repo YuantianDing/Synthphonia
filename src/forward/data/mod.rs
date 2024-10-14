@@ -1,6 +1,6 @@
 
 
-use std::cell::{RefCell, UnsafeCell};
+use std::{cell::{RefCell, UnsafeCell}, sync::Arc};
 
 use itertools::Itertools;
 use spin::Mutex;
@@ -56,7 +56,7 @@ impl Data {
     }
     
     #[inline(always)]
-    pub fn update(&self, exec: &'static Enumerator, e: Expr, v: Value) -> Result<Option<&'static Expr>, ()> {
+    pub fn update(&self, exec: Arc<Enumerator>, e: Expr, v: Value) -> Result<Option<&'static Expr>, ()> {
         let new_ev = std::mem::replace(&mut *self.new_ev.lock(), Vec::new());
         for (e,v) in new_ev {
             self.all_eq.set_ref(v, e);
@@ -64,13 +64,13 @@ impl Data {
 
         if let Some(e) = self.all_eq.set(v, e) {
             {
-                if let Some(mut s) = self.substr() { s.update(v, exec); }
+                if let Some(mut s) = self.substr() { s.update(v, exec.clone()); }
             }
             {
-                if let Some(mut s) = self.prefix() { s.update(v, exec); }
+                if let Some(mut s) = self.prefix() { s.update(v, exec.clone()); }
             }
             {
-                if let Some(mut l) = self.len() { l.update(v, exec); };
+                if let Some(mut l) = self.len() { l.update(v, exec.clone()); };
             }
             // self.listsubseq.update(v)?;
             // self.to.lock().update(exec, e, v);

@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, pin::pin, sync::atomic::AtomicUsize, task::Poll, time::{self, Duration, Instant}
+    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, pin::pin, sync::{atomic::AtomicUsize, Arc}, task::Poll, time::{self, Duration, Instant}
 };
 
 use derive_more::{Constructor, Deref, From, Into, DebugCustom};
@@ -69,10 +69,10 @@ pub struct Enumerator {
     pub counter: Mutex<Counter>,
     pub ctx: Context,
     pub cfg: Cfg,
-    pub deducers: Vec<DeducerEnum>,
+    pub deducers: Vec<&'static DeducerEnum>,
     pub data: Vec<Data>,
     pub other: OtherData,
-    pub top_task: Task<&'static Expr>,
+    pub top_task: Mutex<Task<&'static Expr>>,
     expr_collector: Mutex<Vec<EV>>,
     pub bridge: Bridge,
     pub start_time: time::Instant,
@@ -85,20 +85,17 @@ impl Drop for Enumerator {
 }
 
 impl Enumerator {
-    pub fn new(ctx: Context, cfg: Cfg) -> Self {
+    pub fn new(ctx: Context, cfg: Cfg) -> Arc<Self> {
         let all_str_const = cfg[0].rules.iter().flat_map(|x| if let ProdRule::Const(ConstValue::Str(s)) = x { Some(*s) } else { None }).collect();
         let data = Data::new(&cfg, &ctx);
-        let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i)).collect_vec();
+        let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i).galloc()).collect_vec();
         let other = OtherData { all_str_const };
         let exec = Self { id: rand::random(),
             counter: Counter::new().into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(),
-            top_task: smol::spawn(futures::future::pending()), bridge: Bridge::new(),
+            top_task: smol::spawn(futures::future::pending()).into(), bridge: Bridge::new(),
             start_time: Instant::now() };
         // TextObjData::build_trie(&exec);
-        exec
-    }
-    pub fn top_task(&mut self) -> &mut Task<&'static Expr> {
-        &mut self.top_task
+        Arc::new(exec)
     }
     pub fn collect_expr(&self, e: &'static Expr, v: Value) {
         self.expr_collector.lock().push((e, v))
@@ -111,7 +108,7 @@ impl Enumerator {
         &self.data[self.counter.lock().cur_nt]
     }
     #[inline]
-    pub async fn solve_task(&'static self, problem: Problem) -> &'static Expr {
+    pub async fn solve_task(self: Arc<Self>, problem: Problem) -> &'static Expr {
         if let Some(e) = self.data[problem.nt].all_eq.at(problem.value) {
             return e;
         }
@@ -119,9 +116,9 @@ impl Enumerator {
         smol::spawn(self.deducers[problem.nt].deduce(self, problem)).await
     }
     #[inline]
-    pub async fn generate_condition(&'static self, problem: Problem, result: &'static Expr) -> &'static Expr {
+    pub async fn generate_condition(self: Arc<Self>, problem: Problem, result: &'static Expr) -> &'static Expr {
         if problem.value.is_all_true() { return result; }
-        let left = pin!(self.solve_task(problem.clone()));
+        let left = pin!(self.clone().solve_task(problem.clone()));
         let right = pin!(self.solve_task(problem.clone().with_value(problem.value.bool_not())));
         let cond = futures::future::select(left, right).await;
         match cond {
@@ -131,14 +128,13 @@ impl Enumerator {
                 expr!(Ite {c} "" {result}).galloc(),
         }
     }
-    pub fn solve_top_blocked(&'static mut self) -> &'static Expr {
+    pub fn solve_top_blocked(self: Arc<Self>) -> &'static Expr {
         let problem = Problem::root(0, self.ctx.output);
-        let this = unsafe { (self as *const Enumerator).as_ref::<'static>().unwrap() };
-        this.counter.lock().subproblem_count += 1;
-        let task = std::mem::replace(self.top_task(), smol::spawn(this.deducers[problem.nt].deduce(this, problem)));
-        let _ = this.run();
+        self.counter.lock().subproblem_count += 1;
+        *self.top_task.lock() = smol::spawn(self.clone().deducers[problem.nt].deduce(self.clone(), problem));
+        let _ = self.clone().run();
         self.bridge.abort_all();
-        let task = std::mem::replace(self.top_task(), task);
+        let task = std::mem::replace(&mut *self.top_task.lock(), smol::spawn(futures::future::pending()));
         if let Some(r) = smol::block_on(task.cancel()) {
             r
         } else { panic!("should not reach here.") }
@@ -152,14 +148,13 @@ impl Enumerator {
         // }
     }
 
-    pub fn solve_top_with_limit(&'static mut self) -> Option<&'static Expr> {
+    pub fn solve_top_with_limit(self: Arc<Self>) -> Option<&'static Expr> {
         let problem = Problem::root(0, self.ctx.output);
         self.counter.lock().subproblem_count += 1;
-        let this = unsafe { (self as *const Enumerator).as_ref::<'static>().unwrap() };
-        let task = std::mem::replace(self.top_task(), smol::spawn(this.deducers[problem.nt].deduce(this, problem)));
-        let _ = this.run();
+        *self.top_task.lock() = smol::spawn(self.clone().deducers[problem.nt].deduce(self.clone(), problem));
+        let _ = self.clone().run();
         self.bridge.abort_all();
-        let task = std::mem::replace(self.top_task(), task);
+        let task = std::mem::replace(&mut *self.top_task.lock(), smol::spawn(futures::future::pending()));
         smol::block_on(task.cancel())
     }
 
@@ -169,7 +164,7 @@ impl Enumerator {
     pub fn subproblem_count(&self) -> usize { self.counter.lock().subproblem_count }
     
     #[inline]
-    pub fn enum_expr(&'static self, e: Expr, v: Value) -> Result<(), ()> {
+    pub fn enum_expr(self: Arc<Self>, e: Expr, v: Value) -> Result<(), ()> {
         if self.count() % 10000 == 1 {
             if self.count() % 300000 == 1 {
                 info!("{self:?} Searching size={} [{}] - {:?} {:?} {}", self.size(), self.count(), e, v, self.subproblem_count());
@@ -178,19 +173,18 @@ impl Enumerator {
             self.bridge.check();
         }
         self.counter.lock().counter += 1;
-        
-        if let Some(e) = self.cur_data().update(self, e, v)? {
+        if let Some(e) = self.cur_data().update(self.clone(), e, v)? {
             self.collect_expr(e,v);
             if self.cfg.config.cond_search {
-                self.collect_condition(e, v);
+                self.clone().collect_condition(e, v);
             }
         }
-        if self.top_task.is_finished() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
+        if self.top_task.lock().is_finished() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
             return Err(());
         }
         Ok(())
     }
-    fn collect_condition(&'static self, e: &'static Expr, v: Value) {
+    fn collect_condition(self: Arc<Self>, e: &'static Expr, v: Value) {
         if let Value::Bool(p) = v {
             let tcount: usize = p.iter().map(|x| if *x { 1 } else { 0 }).sum();
             if tcount >= 1 {
@@ -199,16 +193,17 @@ impl Enumerator {
             }
         }
     }
-    fn run(&'static self) -> Result<(), ()> {
+    fn run(self: Arc<Self>) -> Result<(), ()> {
         let _ = self.extract_expr_collector();
         for size in 1 ..self.cfg.config.size_limit {
-            for (nt, ntdata) in self.cfg.iter().enumerate() {
+            let self1 = self.clone();
+            for (nt, ntdata) in self1.cfg.iter().enumerate() {
                 self.counter.lock().cur_size = size;
                 self.counter.lock().cur_nt = nt;
                 info!("{self:?} Enumerating size={} nt={} with - {}", size, ntdata.name, self.count());
                 // self.cur_data().to.enumerate(self)?;
                 for rule in &ntdata.rules {
-                    rule.enumerate(self)?;
+                    rule.enumerate(self.clone())?;
                 }
                 
                 self.cur_data().size.add(size, self.extract_expr_collector());
@@ -216,7 +211,7 @@ impl Enumerator {
         }
         Ok(())
     }
-    // pub fn get_problem(&'static self, p: Problem) -> TaskORc<&'static Expr> {
+    // pub fn get_problem(self: Arc<Self>, p: Problem) -> TaskORc<&'static Expr> {
     //     let hash = unsafe { self.other.problems.as_mut() };
     //     match hash.entry(p.clone()) {
     //         std::collections::hash_map::Entry::Occupied(p) => p.get().clone(),
@@ -227,7 +222,7 @@ impl Enumerator {
     //         }
     //     }
     // }
-    // pub fn block_on<T>(&'static self, t: TaskORc<T>) -> Option<T> {
+    // pub fn block_on<T>(self: Arc<Self>, t: TaskORc<T>) -> Option<T> {
     //     task::with_top_task(t.clone().task(), || {
     //         let _ = self.run();
     //     });
@@ -236,7 +231,7 @@ impl Enumerator {
     //         Poll::Pending => None,
     //     }
     // }
-    // pub fn run_with(&'static self, p: Problem) -> Option<&'static Expr> {
+    // pub fn run_with(self: Arc<Self>, p: Problem) -> Option<&'static Expr> {
     //     let t = self.get_problem(p);
     //     task::with_top_task(t.task(), || {
     //         let _ = self.run();

@@ -1,6 +1,6 @@
 
 use std::{
-    cell::UnsafeCell, collections::{hash_map, HashMap}, hash::Hash, ops::Index, task::Poll
+    cell::UnsafeCell, collections::{hash_map, HashMap}, hash::Hash, ops::Index, sync::Arc, task::Poll
 };
 
 use derive_more::{Constructor, Deref, From, Into, TryInto};
@@ -23,7 +23,7 @@ pub struct Data{
 impl Data {
     pub fn new() -> Self { Data{ found: HashMap::new().into(), event: HashMap::new(), len_limit: 3 } }
     #[inline]
-    pub fn update(&mut self, value: Value, exec: &'static Enumerator) {
+    pub fn update(&mut self, value: Value, exec: Arc<Enumerator>) {
         if exec.size() > self.len_limit { return; }
         if !matches!(value, Value::ListStr(_)) { return; }
         let s: &[&[&str]] = value.try_into().unwrap();

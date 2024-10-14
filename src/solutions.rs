@@ -57,7 +57,7 @@ impl Solutions {
             for k in keys {
                 if k.iter().all(|i| b.get(*i)) {
                     if let Some(a) = self.threads.remove(&k) {
-                        smol::block_on(a.cancel());
+                        drop(a);
                         info!("Interupting Thread of {k:?}");
                         self.create_new_thread();
                     }
@@ -143,7 +143,7 @@ impl Solutions {
 
 pub fn new_thread(cfg: Cfg, ctx: Context) -> Task<Expression> {
     smol::spawn(async move {
-        let exec = Enumerator::new(ctx, cfg).galloc_mut();
+        let exec = Enumerator::new(ctx, cfg);
         info!("Deduction Configuration: {:?}", exec.deducers);
         let result = exec.solve_top_blocked().to_expression();
         result
@@ -158,7 +158,7 @@ pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> Task<Expression> {
 pub fn new_thread_with_limit(cfg: Cfg, ctx: Context) -> Task<Expression> {
     smol::spawn(async move {
         if let Some(p) = (move || {
-            let result = Enumerator::new(ctx, cfg).galloc_mut().solve_top_with_limit().map(|e| e.to_expression());
+            let result = Enumerator::new(ctx, cfg).solve_top_with_limit().map(|e| e.to_expression());
             result
         })() {
             p

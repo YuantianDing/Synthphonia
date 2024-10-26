@@ -42,6 +42,14 @@ pub fn bicoeff(n: usize, p: usize) -> usize {
     let b: usize = (1..=p).product();
     a.div_ceil(b)
 }
+pub fn test_tree_hole_contains(tree_hole: &[Box<[u128]>], bits: &[usize]) -> bool {
+    for hole in tree_hole.iter() {
+        if bits.iter().all(|i| hole[*i] == 1) {
+            return true;
+        }
+    }
+    false
+}
 
 pub struct Solutions {
     cfg: Cfg,
@@ -50,6 +58,7 @@ pub struct Solutions {
     solved_examples: Bits,
     pub threads: MappedFutures<Vec<usize>, JoinHandle<Expression>>,
     start_time: Instant,
+    tree_hole: Vec<Box<[u128]>>,
 }
 
 impl Solutions {
@@ -61,7 +70,9 @@ impl Solutions {
         }
         let solutions = Vec::new();
         let solved_examples = Bits::zeros(ctx.len);
-        Self { cfg, ctx, solutions, solved_examples, threads: MappedFutures::new(), start_time: time::Instant::now() }
+        Self { 
+            tree_hole: vec![Bits::ones(ctx.len)],
+            cfg, ctx, solutions, solved_examples, threads: MappedFutures::new(), start_time: time::Instant::now() }
     }
 
     pub fn add_new_solution(&mut self, expr: &'static Expr) -> Option<&'static Expr> {
@@ -130,13 +141,35 @@ impl Solutions {
         let mut rng = rand::thread_rng();
         for k in 1..=self.ctx.len {
             if bicoeff(self.ctx.len, k) > 4000000 { break; }
-            let mut vec = (0..self.ctx.len).combinations(k).collect_vec();
+
+            let mut vec = Vec::new();
+            if self.cfg.config.tree_hole {
+                for hole in self.tree_hole.iter() {
+                    vec.extend((0..self.ctx.len).filter(|i| hole.get(*i)).combinations(k));
+                } 
+            } else {
+                vec.extend((0..self.ctx.len).combinations(k).collect_vec());
+            }
+            
             vec.shuffle(&mut rng);
             for v in vec {
                 if !self.check_cover(&v) && !self.threads.contains(&v) { return Some(v); }
             }
         }
         None
+    }
+    pub fn update_tree_hole(&mut self, tree_hole: Vec<Box<[u128]>>) {
+        self.tree_hole = tree_hole;
+        let keys = self.threads.keys().cloned().collect_vec();
+        for k in keys {
+            if !test_tree_hole_contains(&self.tree_hole, &k) {
+                if let Some(a) = self.threads.remove(&k) {
+                    a.abort();
+                    info!("Interupting Thread of {k:?}");
+                    self.create_new_thread();
+                }
+            }
+        }
     }
     pub fn create_new_thread(&mut self) {
         if let Some(exs) = self.generate_example_set() { 

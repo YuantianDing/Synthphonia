@@ -22,11 +22,11 @@ pub mod backward;
 pub mod tree_learning;
 pub mod solutions;
 pub mod text;
-use std::{borrow::BorrowMut, cell::Cell, cmp::min, fs, process::exit};
+use std::{borrow::BorrowMut, cell::Cell, cmp::min, fs, os, process::exit};
 
 use clap::Parser;
 use expr::{cfg::Cfg, context::Context, Expr};
-use forward::executor::Executor;
+use forward::executor::{Executor, STOP_SIGNAL};
 use futures::{stream::FuturesUnordered, StreamExt};
 use galloc::AllocForAny;
 use itertools::Itertools;
@@ -49,7 +49,7 @@ struct Cli {
     #[arg(short='j', long, default_value_t=4)]
     thread: usize,
     #[arg(long)]
-    cond_search: bool,
+    no_ite: bool,
     #[arg(long)]
     extract_constants: bool,
     path: String,
@@ -127,8 +127,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             println!("{:?}", ctx.output);
             return Ok(());
         }
-        if args.thread == 1 {
-            if args.cond_search {
+        if args.no_ite {
+            if args.no_ite {
                 cfg.config.cond_search = true;
             }
             let exec = Executor::new(ctx, cfg);
@@ -139,14 +139,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         } else {
             let mut solutions = Solutions::new(cfg.clone(), ctx.clone());
 
-            solutions.create_cond_search_thread();
+            // solutions.create_cond_search_thread();
             for i in 0..min(args.thread, ctx.len) {
                 solutions.create_new_thread();
             }
 
             let result = solutions.solve_loop().await;
             let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
+            
+            STOP_SIGNAL.store(true, std::sync::atomic::Ordering::Relaxed);
+            
             println!("{}", func);
+
+            if solutions.threads.len() != 0 {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
             exit(0);
         }
     }

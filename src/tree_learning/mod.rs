@@ -213,6 +213,23 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
             }
         }
     }
+    fn unsolved_recursive(&self, node: SubProb<'a>, result: &mut Vec<Box<[u128]>>) {
+        match &*node.borrow() {
+            SubProblem::Unsolved(bits, entropy) => {
+                result.push(bits.clone());
+            }
+            SubProblem::Accept(i) => {}
+            SubProblem::Ite { expr, entropy, t: tb, f: fb } => {
+                self.unsolved_recursive(tb, result);
+                self.unsolved_recursive(fb, result);
+            }
+        }
+    }
+    fn unsolved(&self) -> Vec<Box<[u128]>> {
+        let mut result = Vec::new();
+        self.unsolved_recursive(self.root, &mut result);
+        result
+    }
     pub fn expr(&self) -> &'static Expr {
         self.expr_recursizve(self.root)
     }

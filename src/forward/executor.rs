@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, pin::pin, task::Poll, time::{self, Duration, Instant}
+    cell::{Cell, RefCell, UnsafeCell}, collections::{hash_map::Entry, HashMap, HashSet}, default, f64::consts::E, fs, future::Future, pin::pin, sync::atomic::AtomicBool, task::Poll, time::{self, Duration, Instant}
 };
 
 use derive_more::{Constructor, Deref, From, Into};
@@ -10,12 +10,14 @@ use rc_async::{sync::{broadcast, broadcastque}, task::{self, JoinHandle}};
 use crate::{
     backward::{ Deducer, DeducerEnum, Problem}, debg, debg2, expr::{
          cfg::{Cfg, ProdRule}, context::Context, Expr
-    }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, solutions::CONDITIONS, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Value}, warn
+    }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, solutions::CONDITIONS, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Type, Value}, warn
 };
 use crate::expr;
 use super::{bridge::Bridge, data::{self, all_eq, size::EV, Data}};
 
 pub trait EnumFn = FnMut(Expr, Value) -> Result<(), ()>;
+
+pub static STOP_SIGNAL: AtomicBool = AtomicBool::new(false);
 
 pub struct TaskWaitingCost {
     sender: broadcastque::Sender<()>,
@@ -164,26 +166,19 @@ impl Executor {
             self.bridge.check();
         }
         self.counter.update(|x| x + 1);
-        
-        if let Some(e) = self.cur_data().update(self, e, v)? {
+        if self.ctx.output.ty() != Type::Bool && v.ty() == Type::Bool {
+            self.collect_condition(&e);
+        } else if let Some(e) = self.cur_data().update(self, e, v)? {
             self.collect_expr(e,v);
-            if self.cfg.config.cond_search {
-                self.collect_condition(e, v);
-            }
         }
         if self.top_task().is_ready() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
             return Err(());
         }
+        while STOP_SIGNAL.load(std::sync::atomic::Ordering::Relaxed) { /* Loop here forever */ }
         Ok(())
     }
-    fn collect_condition(&'static self, e: &'static Expr, v: Value) {
-        if let Value::Bool(p) = v {
-            let tcount: usize = p.iter().map(|x| if *x { 1 } else { 0 }).sum();
-            if tcount >= 1 {
-                let mut conditions = CONDITIONS.lock();
-                conditions.push((e, v.to_bits()));
-            }
-        }
+    fn collect_condition(&'static self, e: &Expr) {
+        CONDITIONS.lock().as_mut().map(|x| x.insert(e));
     }
     fn run(&'static self) -> Result<(), ()> {
         let _ = self.extract_expr_collector();

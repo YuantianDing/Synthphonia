@@ -28,15 +28,14 @@ impl TaskWaitingCost {
     }
     
     pub async fn inc_cost(&mut self, problem: &mut Problem, amount: usize) -> () {
-        // let mut rv: broadcastque::Reciever<()> = self.sender.reciever();
-        // problem.used_cost += amount;
-        // let amount = problem.used_cost as isize - self.cur_cost as isize;
-        // if amount > 0 {
-        //     for _ in 0..amount {
-        //         let _ = rv.next().await;
-        //     }
-        // }
-        ()
+        let mut rv: broadcastque::Reciever<()> = self.sender.reciever();
+        problem.used_cost += amount;
+        let amount = problem.used_cost as isize - self.cur_cost as isize;
+        if amount > 0 {
+            for _ in 0..amount {
+                let _ = rv.next().await;
+            }
+        }
     }
     
     pub fn release_cost_limit(&mut self, count: usize) -> () {

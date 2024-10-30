@@ -1,6 +1,6 @@
 
 
-use std::{cell::UnsafeCell, collections::{hash_map, HashMap, HashSet}, iter, ops::Range};
+use std::{cell::UnsafeCell, collections::{hash_map, HashSet}, iter, ops::Range};
 
 use derive_more::{Deref, DerefMut};
 use futures::{SinkExt, StreamExt};
@@ -15,6 +15,7 @@ use crate::{closure, debg2, expr::Expr, forward::executor::Executor, utils::{nes
 use super::size::EV;
 pub type Indices = Vec<usize>;
 
+use ahash::AHashMap as HashMap;
 
 pub struct Data {
     expected: &'static [&'static str],

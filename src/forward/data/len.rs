@@ -1,6 +1,6 @@
 
 use std::{
-    cell::UnsafeCell, collections::{hash_map, HashMap}, hash::Hash, ops::Index, task::Poll
+    cell::UnsafeCell, collections::{hash_map}, hash::Hash, ops::Index, task::Poll
 };
 
 use derive_more::{Constructor, Deref, From, Into, TryInto};
@@ -18,6 +18,8 @@ pub struct Data{
     event: HashMap<Vec<usize>, broadcast::Sender<Value>>,
     len_limit: usize,
 }
+
+use ahash::AHashMap as HashMap;
 
 
 impl Data {

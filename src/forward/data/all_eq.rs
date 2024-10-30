@@ -1,6 +1,6 @@
 use std::{
     cell::UnsafeCell,
-    collections::{hash_map, HashMap},
+    collections::{hash_map},
     task::Poll, ops::Index,
 };
 
@@ -14,6 +14,7 @@ use crate::{
     utils::UnsafeCellExt,
     value::Value, log, info, debg,
 };
+use ahash::AHashMap as HashMap;
 
 #[derive(From, Deref)]
 pub struct Data(UnsafeCell<HashMap<Value, MaybeReady<&'static Expr>>>);

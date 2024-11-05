@@ -58,6 +58,8 @@ pub struct Solutions {
     solved_examples: Bits,
     pub threads: MappedFutures<Vec<usize>, JoinHandle<Expression>>,
     start_time: Instant,
+    last_update: Instant,
+    ite_limit: usize,
     tree_hole: Vec<Box<[u128]>>,
 }
 
@@ -72,7 +74,7 @@ impl Solutions {
         let solved_examples = Bits::zeros(ctx.len);
         Self { 
             tree_hole: vec![Bits::ones(ctx.len)],
-            cfg, ctx, solutions, solved_examples, threads: MappedFutures::new(), start_time: time::Instant::now() }
+            cfg, ctx, solutions, solved_examples, threads: MappedFutures::new(), start_time: time::Instant::now(), last_update: time::Instant::now(), ite_limit: 1}
     }
 
     pub fn add_new_solution(&mut self, expr: &'static Expr) -> Option<&'static Expr> {
@@ -115,17 +117,17 @@ impl Solutions {
     pub fn learn_tree(&self, ite_limit_rate: usize) -> Option<&'static Expr> {
         let duration = time::Instant::now() - self.start_time;
         let ite_limit = if duration.as_secs() as usize >= self.cfg.config.ite_limit_giveup {
-            self.cfg.config.ite_limit_giveup * 1000 / ite_limit_rate + (duration.as_millis() as usize - self.cfg.config.ite_limit_giveup * 1000) * 5 / ite_limit_rate + 1
-        } else { duration.as_millis() as usize / ite_limit_rate + 1};
+            self.ite_limit + (duration.as_millis() as usize - self.cfg.config.ite_limit_giveup * 1000) * 5 / ite_limit_rate + 1
+        } else { self.ite_limit };
+        
         let mut lock = CONDITIONS.lock();
         let conditions = lock.as_mut().unwrap();
-        debg!("Conditions: {}", conditions.len());
+        debg!("Tree Learning Conditions: {}, Limit: {}", conditions.len(), ite_limit);
         let bump = bumpalo::Bump::new();
         let result = tree_learning(self.solutions.clone(), &conditions.vec[..], self.ctx.len, &bump, ite_limit);
         if result.solved {
             Some(result.expr())
         } else {
-            
             None
         }
     }
@@ -193,13 +195,19 @@ impl Solutions {
                     let (k,v) = result.unwrap();
                     let v = v.expect("Thread Execution Error").alloc_local();
                     info!("Found a solution {:?} with examples {:?}.", v, k);
+                    self.last_update = time::Instant::now();
                     if let Some(e) = self.add_new_solution(v) {
                         for v in self.threads.iter() { v.abort(); }
                         return e;
                     }
                     self.create_new_thread();
                 }
-                _ = tokio::time::sleep(Duration::from_millis(2000)) => {
+                _ = tokio::time::sleep(Duration::from_millis(std::cmp::min(self.cfg.config.ite_limit_rate as u64, 2000))) => {
+                    if time::Instant::now() - self.last_update > Duration::from_millis(self.cfg.config.ite_limit_rate as u64 - 10) {
+                        info!("Adaptive Adjustment of ITE Limit: {}", self.ite_limit);
+                        self.ite_limit += 1;
+                        self.last_update = time::Instant::now();
+                    }
                     if let Some(e) = self.generate_result(self.threads.len() != 0) {
                         for v in self.threads.iter() { v.abort(); }
                         return e;

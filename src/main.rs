@@ -50,6 +50,8 @@ struct Cli {
     thread: usize,
     #[arg(long)]
     no_ite: bool,
+    #[arg(long, default_value_t=1000)]
+    ite_limit_rate: usize,
     #[arg(long)]
     extract_constants: bool,
     path: String,
@@ -120,6 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
         info!("CFG: {:?}", cfg);
         let ctx = Context::from_examples(&problem.examples);
+        debg!("Examples: {:?}", ctx.output);
         if args.showex {
             for i in ctx.inputs() {
                 println!("{:?}", i);
@@ -127,6 +130,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             println!("{:?}", ctx.output);
             return Ok(());
         }
+        cfg.config.ite_limit_rate = args.ite_limit_rate;
         if args.no_ite {
             if args.no_ite {
                 cfg.config.cond_search = true;

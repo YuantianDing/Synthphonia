@@ -141,7 +141,6 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
     pub fn run(&mut self) -> bool {
         let mut counter = 1;
         while let Some(last) = self.subproblems.pop() {
-            debg2!("{:?}", self);
             let sel = self.select(&*last.borrow());
             match sel {
                 SelectResult::Accept(i) => {
@@ -154,12 +153,19 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
                     self.subproblems.push(tb);
                     *last.borrow_mut() = SubProblem::Ite{ expr, entropy, t: tb, f: fb };
                     counter += 2;
-                    if counter > self.limit { return false; }
+                    if counter > self.limit { 
+                        debg2!("{:?}", self);
+                        return false;
+                    }
                 }
-                SelectResult::Failed => return false,
+                SelectResult::Failed => {
+                    debg2!("{:?}", self);
+                    return false;
+                }
             }
         }
         self.solved = true;
+        debg2!("{:?}", self);
         true
     }
 

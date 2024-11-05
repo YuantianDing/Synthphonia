@@ -136,7 +136,7 @@ impl From<Config> for CfgConfig {
             increase_cost_limit: value.get_i64("increase_cost_limit").unwrap_or(2000) as usize,
             cond_search: false,
             no_deduction: false,
-            ite_limit_rate: value.get_i64("ite_limit_rate").unwrap_or(4000) as usize,
+            ite_limit_rate: value.get_i64("ite_limit_rate").unwrap_or(1000) as usize,
             ite_limit_giveup: value.get_i64("ite_limit_giveup").unwrap_or(40) as usize,
             tree_hole: false,
         }

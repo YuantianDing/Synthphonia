@@ -122,6 +122,9 @@ impl Solutions {
         
         let mut lock = CONDITIONS.lock();
         let conditions = lock.as_mut().unwrap();
+        if conditions.len() == 0 {
+            return None;
+        }
         debg!("Tree Learning Conditions: {}, Limit: {}", conditions.len(), ite_limit);
         let bump = bumpalo::Bump::new();
         let result = tree_learning(self.solutions.clone(), &conditions.vec[..], self.ctx.len, &bump, ite_limit);

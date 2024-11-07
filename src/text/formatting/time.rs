@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use chrono::NaiveTime;
 use regex::Regex;
 
 use crate::forward::enumeration::Enumerator1;
+use crate::forward::executor::Enumerator;
 use crate::utils::F64;
 use crate::value::{ConstValue, Value};
 use chrono::Timelike;
@@ -106,7 +109,7 @@ impl Default for FormatTime {
 }
 
 impl Enumerator1 for FormatTime {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
+    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
 impl crate::expr::ops::Op1 for FormatTime {

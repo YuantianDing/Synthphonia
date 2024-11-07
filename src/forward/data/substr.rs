@@ -1,6 +1,6 @@
 
 
-use std::{cell::UnsafeCell, collections::{hash_map, HashMap, HashSet}, iter, ops::Range, sync::Arc};
+use std::{cell::UnsafeCell, collections::{hash_map, HashSet}, iter, ops::Range, sync::Arc};
 
 use derive_more::{Deref, DerefMut};
 use futures::{SinkExt, StreamExt};
@@ -12,6 +12,7 @@ use crate::{closure, expr::Expr, forward::executor::Enumerator, never, utils::{n
 use async_broadcast::{broadcast, Sender, Receiver};
 
 use super::size::EV;
+use ahash::AHashMap as HashMap;
 
 pub struct Data {
     expected: &'static [&'static str],

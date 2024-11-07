@@ -1,11 +1,11 @@
-use std::{collections::HashMap, iter, ops::Range};
+use std::{iter, ops::Range};
 
 use iset::IntervalMap;
 use itertools::{Itertools};
 use radix_trie::{Trie, TrieCommon};
 
 use crate::closure;
-
+use ahash::AHashMap as HashMap;
 pub enum NestedIntervalTree<T>{
     Node(IntervalMap<usize, Box<NestedIntervalTree<T>>>),
     Leaf(T)

@@ -1,17 +1,17 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use chrono::{NaiveDate, Datelike, Month};
 use itertools::Itertools;
 use regex::Regex;
 
-use crate::{galloc::AllocForExactSizeIter, expr::{Expr, ops}, impl_basic, impl_op1_opt, new_op1_opt, value::{ConstValue, Value}};
+use crate::{expr::{ops, Expr}, forward::executor::Enumerator, galloc::AllocForExactSizeIter, impl_basic, impl_op1_opt, new_op1_opt, value::{ConstValue, Value}};
 use crate::galloc::TryAllocForExactSizeIter;
 use super::ParsingOp;
 
 
 impl_basic!(ParseMonth, "month.parse");
 impl crate::forward::enumeration::Enumerator1 for ParseMonth {
-    fn enumerate(&self, this: &'static ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
+    fn enumerate(&self, this: &'static ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
 }
 
 impl_op1_opt!(ParseMonth, "month.parse",

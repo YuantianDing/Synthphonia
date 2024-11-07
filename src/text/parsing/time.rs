@@ -1,5 +1,7 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
+use crate::forward::executor::Enumerator;
 use crate::galloc::TryAllocForExactSizeIter;
 use chrono::{Datelike, Month, NaiveDate, NaiveTime};
 use itertools::Itertools;
@@ -22,7 +24,7 @@ impl crate::forward::enumeration::Enumerator1 for ParseTime {
     fn enumerate(
         &self,
         this: &'static ops::Op1Enum,
-        exec: &'static crate::forward::executor::Enumerator,
+        exec: Arc<Enumerator>,
         opnt: [usize; 1],
     ) -> Result<(), ()> {
         Ok(())

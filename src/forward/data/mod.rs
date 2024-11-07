@@ -5,7 +5,7 @@ use std::{cell::{RefCell, UnsafeCell}, sync::Arc};
 use itertools::Itertools;
 use spin::Mutex;
 
-use crate::{expr::{cfg::Cfg, context::Context, Expr}, utils::UnsafeCellExt, value::{Type, Value}};
+use crate::{expr::{cfg::Cfg, context::Context, Expr}, text::parsing::TextObjData, utils::UnsafeCellExt, value::{Type, Value}};
 
 use self::size::{VecEv, EV};
 
@@ -26,7 +26,7 @@ pub struct Data {
     pub prefix: Option<Mutex<prefix::Data>>,
     // pub listsubseq: listsubseq::Data,
     pub len: Option<Mutex<len::Data>>,
-    // pub to: Mutex<TextObjData>,
+    pub to: Mutex<TextObjData>,
     pub new_ev: Mutex<Vec<(&'static Expr, Value)>>,
 } 
 
@@ -40,7 +40,7 @@ impl Data {
                 prefix: prefix::Data::new(ctx.output, usize::MAX),
                 // listsubseq: listsubseq::Data::new(ctx.output, (0..listsubseq_sample).collect_vec().as_slice() ),
                 len: if nt.ty != Type::ListStr && cfg[i].get_op1("list.map").is_some() { None } else { Some(len::Data::new().into()) },
-                // to: TextObjData::new().into(),
+                to: TextObjData::new().into(),
                 new_ev: Vec::<(&'static Expr, Value)>::new().into()
             }
         }).collect_vec()
@@ -73,7 +73,7 @@ impl Data {
                 if let Some(mut l) = self.len() { l.update(v, exec.clone()); };
             }
             // self.listsubseq.update(v)?;
-            // self.to.lock().update(exec, e, v);
+            self.to.lock().update(exec, e, v);
             Ok(Some(e))
         } else {
             Ok(None)

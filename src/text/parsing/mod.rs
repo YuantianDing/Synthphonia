@@ -1,5 +1,5 @@
 
-use std::{collections::{HashMap, HashSet}, cell::UnsafeCell};
+use std::{cell::UnsafeCell, collections::{HashMap, HashSet}, sync::Arc};
 
 use itertools::Itertools;
 use kv_trie_rs::{Trie, TrieBuilder};
@@ -9,17 +9,15 @@ use spin::Mutex;
 use crate::{debg, expr::{cfg::ProdRule, context::Context, ops::{Op1, Op1Enum}, Expr}, forward::executor::Enumerator, utils::UnsafeCellExt, value::{consts_to_value, ConstValue, Value}};
 
 pub struct TextObjData {
-    trie: Vec<(&'static Op1Enum, usize, Trie<u8, ConstValue>)>>,
+    trie: Vec<(&'static Op1Enum, usize, Trie<u8, ConstValue>)>,
     future_exprs: Vec<Vec<(Expr, Value)>>,
 }
 
 impl TextObjData {
-    pub fn enumerate(&mut self, exec: Arc<Enumerator>) -> Result<(), ()> {
-        if exec.size() >= self.future_exprs.len() { return Ok(()); }
-        for (e, v) in self.future_exprs[exec.size()].drain(0..) {
-            exec.enum_expr(e, v)?;
-        }
-        Ok(())
+    pub fn get_exprs(&mut self, exec: Arc<Enumerator>) -> Vec<(Expr, Value)> {
+        if exec.size() >= self.future_exprs.len() { return Vec::new(); }
+        
+        std::mem::replace(&mut self.future_exprs[exec.size()], Vec::new())
     }
     pub fn build_trie(exec: &Enumerator) {
         for (nt, ntdata) in exec.cfg.iter().enumerate() {

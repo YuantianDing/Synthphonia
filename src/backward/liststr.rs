@@ -39,7 +39,7 @@ impl Deducer for ListDeducer {
 impl ListDeducer {
     #[inline]
     pub fn map(&'static self, exec: Arc<Enumerator>, mut prob: Problem, list: Value) -> Option<Task<&'static Expr>> {
-        if prob.used_cost >= 6 { return None; }
+        if prob.used_cost >= 4 { return None; }
         let p = prob.value.to_liststr();
         if p.iter().all(|x| x.len() <= 2) {  return None; }
         let l = list.to_liststr();
@@ -52,11 +52,11 @@ impl ListDeducer {
 
             let mut cfg = self.map.as_ref().unwrap().clone();
             let ctx = Context::new(p.len(), vec![l.into()], vec![], p.into());
-            cfg.config.size_limit = 10;
-            cfg.config.time_limit = 1000;
+            cfg.config.size_limit = 8;
+            cfg.config.time_limit = 500;
             let handle = new_thread_with_limit(cfg, ctx);
             debg!("{exec:?} ListDeducer::map {:?} {:?} new thread {:?}", prob.value, list, handle);
-            let inner = exec.bridge.wait(handle).await.unwrap();
+            let inner = handle.await;
             let mut result = exec.data[prob.nt].all_eq.get(list.into());
             Expr::Op1(Op1Enum::Map(ops::Map(Some(inner.alloc_local()))).galloc(), result).galloc()
         }))

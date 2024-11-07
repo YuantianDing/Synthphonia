@@ -1,9 +1,11 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use chrono::NaiveTime;
 use regex::Regex;
 
 use crate::forward::enumeration::Enumerator1;
+use crate::forward::executor::Enumerator;
 use crate::utils::F64;
 use crate::value::{ConstValue, Value};
 use chrono::Timelike;
@@ -45,7 +47,7 @@ impl Default for FormatWeekday {
 }
 
 impl Enumerator1 for FormatWeekday {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
+    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
 

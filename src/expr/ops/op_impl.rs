@@ -29,7 +29,7 @@ macro_rules! default_value {
     (Int) => { 0i64 }; 
     (Bool) => { false }; 
     (Float) => { $crate::utils::F64(0.0) }; 
-    (ListStr) => { [] }; 
+    (ListStr) => { &[] as &[&str] }; 
     (ListInt) => { [] }; 
 }
 #[macro_export]

@@ -1,6 +1,6 @@
 use std::{
     cell::UnsafeCell,
-    collections::{hash_map, HashMap},
+    collections::{hash_map},
     task::Poll, ops::Index,
 };
 
@@ -11,6 +11,7 @@ use spin::Mutex;
 use crate::{
     debg, expr::Expr, galloc::AllocForAny, info, log, utils::{fut::MaybeReady, UnsafeCellExt}, value::Value
 };
+use ahash::AHashMap as HashMap;
 
 #[derive(From, Deref)]
 pub struct Data(Mutex<HashMap<Value, MaybeReady<&'static Expr>>>);

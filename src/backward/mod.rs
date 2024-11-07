@@ -40,7 +40,7 @@ impl Problem {
 }
 
 pub trait Deducer {
-    async fn deduce(&'static self, exec: Arc<Enumerator>, value: Problem) -> &'static Expr;
+    fn deduce(&'static self, exec: Arc<Enumerator>, value: Problem) -> impl std::future::Future<Output = &'static Expr> + Send;
 }
 
 #[derive(DebugCustom)]

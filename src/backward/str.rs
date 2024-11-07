@@ -8,7 +8,7 @@ use itertools::Itertools;
 use smol::Task;
 use spin::Mutex;
 // use text::formatting::Op1EnumToFormattingOp
-use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::{data::{len, prefix, substr}, executor::Enumerator}, info, DEBUG};
+use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::{data::{len, prefix, substr}, executor::Enumerator}, info, text::formatting::Op1EnumToFormattingOp, DEBUG};
 use crate::{galloc::{self, AllocForAny, AllocForExactSizeIter, AllocForIter}, never, utils::{fut::{pending_if, select_all, select_ret, select_ret3, select_ret4, select_ret5}, UnsafeCellExt}, value::Value};
 
 use crate::expr;
@@ -114,18 +114,18 @@ impl Deducer for StrDeducer {
             
         let map_event = pin!(closure! {clone futures; async move {
             if join_empty_str_cond {
-                let v = len::Data::listen_once(exec3.clone().data[self.join.1].len.as_ref().unwrap(), prob.value).await;
+                let _v = len::Data::listen_once(exec3.clone().data[self.join.1].len.as_ref().unwrap(), prob.value).await;
                 futures.extend_iter(this.join_empty_str(exec3, prob).into_iter());
             } 
             never!(&'static Expr)
         }});
-        // let iter = self.formatter.iter().map(|x| self.fmt(prob.clone(), x, exec));
+        let iter = self.formatter.iter().map(|x| self.fmt(prob.clone(), x.clone(), exec.clone()));
 
         let substr_event = pin!(substr_event);
         let prefix_event = pin!(prefix_event);
         let events = select_ret3(prefix_event, substr_event, map_event);
 
-        let result = select_ret3(eq, events, futures/* , pin!(select_all(iter))*/).await;
+        let result = select_ret4(eq, events, futures, pin!(select_all(iter))).await;
         result
     }
 }
@@ -172,14 +172,14 @@ impl StrDeducer {
     fn split1(&'static self, exec: Arc<Enumerator>, mut prob: Problem, delimiter: Value) -> Option<Task<&'static Expr>> {
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();
-        let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
+        // let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
         // if !(contain_count >= self.split_once_count(exec) && prob.used_cost < 15) { return None; }
 
         
         Some(smol::spawn(async move {
             let (a, b, cases) = split_once(v, delimiter);
             if !cases.is_all_true() && self.ite_concat.1 == usize::MAX { return never!() }
-            // exec.waiting_tasks().inc_cost(&mut prob, 1).await;
+            exec.waiting_tasks.inc_cost(&mut prob, 1).await;
 
             debg!("{exec:?} StrDeducer::split1 {v:?} {delimiter:?}");
 
@@ -226,7 +226,7 @@ impl StrDeducer {
             debg!("{exec:?} StrDeducer::ite_concat {} {:?} {:?} {start_count} {eq_count}", prob.nt, v, prefix);
             let (a, b) = ite_concat_split(v, prefix);
             
-            // exec.waiting_tasks().inc_cost(&mut prob, 1).await;
+            exec.waiting_tasks.inc_cost(&mut prob, 1).await;
 
             let right = exec.clone().solve_task(prob.with_value(b)).await;
             
@@ -250,7 +250,7 @@ impl StrDeducer {
 
         
         Some(smol::spawn(async move {
-            // exec.waiting_tasks().inc_cost(&mut prob, 1).await;
+            exec.waiting_tasks.inc_cost(&mut prob, 1).await;
 
             let a = value_split(v, delimiter);
             debg!("{exec:?} StrDeducer::join {v:?} {delimiter:?}");
@@ -266,7 +266,7 @@ impl StrDeducer {
         debg!("{exec:?} StrDeducer::join_empty_str {:?}", prob.value);
 
         Some(smol::spawn(async move {
-            // exec.waiting_tasks().inc_cost(&mut prob, 1).await;
+            exec.waiting_tasks.inc_cost(&mut prob, 1).await;
             let v = prob.value.to_str();
             let li = v.into_iter().map(|x| (0..x.len()).map(|i| &x[i..i+1]).galloc_scollect() ).galloc_scollect();
             let list = exec.solve_task(prob.with_nt(self.join.1, li.into())).await;
@@ -282,28 +282,35 @@ impl StrDeducer {
     //     let delim = exec.data[self.nt].all_eq.get(delimiter.into());
     //     expr!(Join {list} {delim}).galloc()
     // }
-    // #[inline]
-    // async fn fmt(&self, mut problem: Problem, formatter: &(Op1Enum, usize), exec: Arc<Enumerator>) -> &'static Expr {
-    //     let v = problem.value.to_str();
-    //     if let Some((op, a, b, cond)) = formatter.0.format_all(v) {
-    //         debg!("StrDeducer::fmt {v:?} {formatter:?}");
-    //         // if !cond.is_all_true() { exec.waiting_tasks().inc_cost(&mut problem, 1).await; }
-    //         // else { exec.waiting_tasks().inc_cost(&mut problem, 1).await; }
+    #[inline]
+    fn fmt(&'static self, mut problem: Problem, formatter: (Op1Enum, usize), exec: Arc<Enumerator>) -> Task<&'static Expr> {
+        let v = problem.value.to_str();
+        // debg!("StrDeducer::fmt1 {v:?} {formatter:?}");
+        smol::spawn(async move {
+            if let Some((op, a, b, cond)) = formatter.0.format_all(v) {
+                debg!("StrDeducer::fmt {v:?} {formatter:?} {a:?}");
+                // if !cond.is_all_true() { exec.waiting_tasks.inc_cost(&mut problem, 1).await; }
+                // else { exec.waiting_tasks.inc_cost(&mut problem, 1).await; }
+                
+                let inner = exec.clone().solve_task(problem.with_nt(formatter.1, a)).await;
+                
+                debg!("StrDeducer::fmt1 {v:?} {formatter:?} {b:?}");
+                let rest = exec.clone().solve_task(problem.with_nt(self.nt, b)).await;
+                
+                debg!("StrDeducer::fmt2 {v:?} {formatter:?}");
 
-    //         let inner = exec.solve_task(problem.with_nt(formatter.1, a)).await;
-    //         let rest = exec.solve_task(problem.with_nt(self.nt, b)).await;
-            
-    //         let mut result = Expr::Op1(op.clone().galloc(), inner).galloc();
-    //         if self.ite_concat.1 != usize::MAX {
-    //             result = exec.generate_condition(problem.with_nt(self.ite_concat.1, cond), result).await;
-    //         }
-    //         result = expr!(Concat {result} {rest}).galloc();
-    //         if DEBUG.get() {
-    //             assert_eq!(result.eval(&exec.ctx), Value::Str(v), "Expression: {:?} {:?}", result, a);
-    //         }
-    //         result
-    //     } else { never!() }
-    // }
+                let mut result = Expr::Op1(op.clone().galloc(), inner).galloc();
+                if self.ite_concat.1 != usize::MAX {
+                    result = exec.clone().generate_condition(problem.with_nt(self.ite_concat.1, cond), result).await;
+                }
+                result = expr!(Concat {result} {rest}).galloc();
+                if DEBUG.get() {
+                    assert_eq!(result.eval(&exec.ctx), Value::Str(v), "Expression: {:?} {:?}", result, a);
+                }
+                result
+            } else { never!() }
+        })
+    }
 }
 
 pub fn split_once(s: &'static [&'static str], delimiter: &'static [&'static str]) -> (Value, Value, Value) {

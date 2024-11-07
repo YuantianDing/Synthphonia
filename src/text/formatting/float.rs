@@ -1,8 +1,10 @@
 use std::cmp::{max, min};
+use std::sync::Arc;
 
 use regex::Regex;
 
 use crate::forward::enumeration::Enumerator1;
+use crate::forward::executor::Enumerator;
 use crate::utils::F64;
 use crate::value::{ConstValue, Value};
 use crate::{ impl_name, impl_op1, parser::config::Config};
@@ -71,7 +73,7 @@ impl Default for FormatFloat {
 }
 
 impl Enumerator1 for FormatFloat {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
+    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
 crate::impl_formatop!(FormatFloat, Float, |this: &FormatFloat| this.cost);

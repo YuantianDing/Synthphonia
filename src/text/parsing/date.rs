@@ -1,10 +1,11 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use chrono::{NaiveDate, Datelike, Month};
 use itertools::Itertools;
 use regex::Regex;
+use spin::lazy;
 
-use crate::{galloc::AllocForExactSizeIter, expr::{Expr, ops}, impl_basic, impl_op1_opt, new_op1_opt, value::{ConstValue, Value}};
+use crate::{expr::{ops, Expr}, forward::executor::Enumerator, galloc::AllocForExactSizeIter, impl_basic, impl_op1_opt, new_op1_opt, value::{ConstValue, Value}};
 
 use crate::galloc::TryAllocForExactSizeIter;
 use super::ParsingOp;
@@ -12,7 +13,7 @@ use super::ParsingOp;
 
 impl_basic!(ParseDate, "date.parse");
 impl crate::forward::enumeration::Enumerator1 for ParseDate {
-    fn enumerate(&self, this: &'static ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
+    fn enumerate(&self, this: &'static ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
 }
 
 impl crate::expr::ops::Op1 for ParseDate {
@@ -36,12 +37,8 @@ impl crate::expr::ops::Op1 for ParseDate {
     }
 }
 
-
-impl ParsingOp for ParseDate {
-
-    fn parse_into(&self, input: &'static str) -> std::vec::Vec<(&'static str, ConstValue)> {
-        let months = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        let mut result: Vec<(&'static str, ConstValue)> = Vec::new();
+lazy_static::lazy_static!{
+    static ref REGEXES : [Regex; 5] = {
         let month_literal = "(?<month>Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?)";
         let month = r"((?<m>\d{1,2})|(?<month>Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?))";
         let day = r"((?<d>\d{1,2})(st|nd|rd|th)?)";
@@ -51,6 +48,17 @@ impl ParsingOp for ParseDate {
         let regex3 = Regex::new(format!(r"{day}[ \-/.,]*{month}[\- /.,]*{year}?").as_str()).unwrap();
         let regex4 = Regex::new(format!(r"{month}[\- /.,]+{year}?").as_str()).unwrap();
         let regex5 = Regex::new(format!(r"{month_literal}").as_str()).unwrap();
+        [regex1, regex2, regex3, regex4, regex5]
+    };
+}
+
+
+impl ParsingOp for ParseDate {
+
+    fn parse_into(&self, input: &'static str) -> std::vec::Vec<(&'static str, ConstValue)> {
+        let months = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        let mut result: Vec<(&'static str, ConstValue)> = Vec::new();
+        let [regex1, regex2, regex3, regex4, regex5] = &*REGEXES;
         let iter = regex1.captures_iter(input).chain(regex2.captures_iter(input)).chain(regex3.captures_iter(input)).chain(regex4.captures_iter(input)).chain(regex5.captures_iter(input));
         for m in iter {
             let mut year = if m.name("y").is_none() { 2000 } else { m.name("y").unwrap().as_str().parse::<i32>().unwrap()};

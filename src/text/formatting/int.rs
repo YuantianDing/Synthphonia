@@ -1,9 +1,11 @@
 use std::cmp::max;
+use std::sync::Arc;
 
 use itertools::Format;
 use regex::Regex;
 
 use crate::forward::enumeration::Enumerator1;
+use crate::forward::executor::Enumerator;
 use crate::value::{ConstValue, Value};
 use crate::{ impl_name, impl_op1, parser::config::Config};
 
@@ -48,7 +50,7 @@ impl Default for FormatInt {
 }
 
 impl Enumerator1 for FormatInt {
-    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
+    fn enumerate(&self, this: &'static crate::expr::ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(()) }
 }
 
 crate::impl_formatop!(FormatInt, Int, |this: &FormatInt| this.0);

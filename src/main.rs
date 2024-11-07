@@ -21,7 +21,7 @@ pub mod forward;
 pub mod backward;
 pub mod tree_learning;
 pub mod solutions;
-// pub mod text;
+pub mod text;
 use std::{borrow::BorrowMut, cell::Cell, cmp::min, fs, process::exit};
 
 use clap::Parser;
@@ -35,7 +35,7 @@ use parser::check::CheckProblem;
 use solutions::new_thread;
 use value::ConstValue;
 
-use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, solutions::{cond_search_thread, Solutions}, value::Type};
+use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, solutions::{Solutions}, value::Type};
 #[derive(Debug, Parser)]
 #[command(name = "stren")]
 struct Cli {
@@ -48,7 +48,11 @@ struct Cli {
     #[arg(short='j', long, default_value_t=4)]
     thread: usize,
     #[arg(long)]
-    cond_search: bool,
+    no_ite: bool,
+    #[arg(long, default_value_t=4000)]
+    ite_limit_rate: usize,
+    #[arg(long, default_value_t=2)]
+    deduction_thread: usize,
     #[arg(long)]
     extract_constants: bool,
     path: String,
@@ -66,6 +70,7 @@ pub static COUNTER: spin::Mutex<[usize; 6]> = spin::Mutex::new([0usize; 6]);
 fn main() -> Result<(), Box<dyn std::error::Error>>{
     let args = Cli::parse();
     log::set_log_level(args.verbose + 2);
+    std::env::set_var("SMOL_THREADS", format!("{}", args.thread + args.deduction_thread));
     DEBUG.set(args.debug);
     if args.sig {
         let s = fs::read_to_string(args.path).unwrap();
@@ -118,6 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
         info!("CFG: {:?}", cfg);
         let ctx = Context::from_examples(&problem.examples);
+        debg!("Examples: {:?}", ctx.output);
         if args.showex {
             for i in ctx.inputs() {
                 println!("{:?}", i);
@@ -125,11 +131,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
             println!("{:?}", ctx.output);
             return Ok(());
         }
-        if args.thread == 1 {
-            if args.cond_search {
+        cfg.config.ite_limit_rate = args.ite_limit_rate;
+        if args.no_ite {
+            if args.no_ite {
                 cfg.config.cond_search = true;
             }
-            let mut exec = Enumerator::new(ctx, cfg);
+            let mut exec = Enumerator::new(ctx, cfg, None);
             info!("Deduction Configuration: {:?}", exec.deducers);
             smol::block_on(async {
                 let result = exec.solve_top_blocked();
@@ -140,7 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         } else {
             let mut solutions = Solutions::new(cfg.clone(), ctx.clone());
 
-            solutions.create_cond_search_thread();
+            // solutions.create_cond_search_thread();
             for i in 0..min(args.thread, ctx.len) {
                 solutions.create_new_thread();
             }

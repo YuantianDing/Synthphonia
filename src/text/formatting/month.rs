@@ -1,9 +1,11 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use chrono::NaiveTime;
 use regex::Regex;
 
 use crate::forward::enumeration::Enumerator1;
+use crate::forward::executor::Enumerator;
 use crate::impl_op1_opt;
 use crate::utils::F64;
 use crate::value::{ConstValue, Value};
@@ -51,7 +53,7 @@ impl Enumerator1 for FormatMonth {
     fn enumerate(
         &self,
         this: &'static crate::expr::ops::Op1Enum,
-        exec: &'static crate::forward::executor::Enumerator,
+        exec: Arc<Enumerator>,
         opnt: [usize; 1],
     ) -> Result<(), ()> {
         Ok(())

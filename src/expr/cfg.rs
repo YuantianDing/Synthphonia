@@ -2,10 +2,8 @@ use std::{collections::HashMap, cmp::min};
 
 use crate::{
     expr::ops::{Op1Enum, Op2Enum, Op3Enum}, galloc::AllocForAny, parser::{
-        self,
-        problem::{self, Error, PBEProblem, SynthFun},
-        prod, config::Config,
-    }, value::{ConstValue, Type}
+        self, config::Config, problem::{self, Error, PBEProblem, SynthFun}, prod
+    }, text::formatting::Op1EnumToFormattingOp, value::{ConstValue, Type}
 };
 use derive_more::{DebugCustom, Deref, DerefMut, From, Into, Index, IndexMut};
 use itertools::Itertools;
@@ -103,9 +101,9 @@ impl NonTerminal {
         let mut result = Vec::new();
         for rule in self.rules.iter() {
             if let ProdRule::Op1(r, nt) = rule {
-                // if r.is_formatting_op() {
-                //     result.push(((*r).clone(), *nt));
-                // }
+                if r.is_formatting_op() {
+                    result.push(((*r).clone(), *nt));
+                }
             }
         }
         result
@@ -117,11 +115,12 @@ pub struct CfgConfig {
     pub time_limit: usize,
     pub substr_limit: usize,
     pub listsubseq_samples: usize,
-    pub increase_cost_limit: usize,
+    pub deduction_wait_count: usize,
     pub cond_search: bool,
     pub no_deduction: bool,
     pub ite_limit_rate: usize,
     pub ite_limit_giveup: usize,
+    pub tree_hole: bool,
 }
 
 impl From<Config> for CfgConfig {
@@ -131,11 +130,12 @@ impl From<Config> for CfgConfig {
             time_limit: value.get_usize("time_limit").unwrap_or(usize::MAX),
             substr_limit: value.get_i64("data.substr.limit").unwrap_or(4) as usize,
             listsubseq_samples: value.get_i64("data.listsubseq.sample").unwrap_or(0) as usize,
-            increase_cost_limit: value.get_i64("increase_cost_limit").unwrap_or(2000) as usize,
+            deduction_wait_count: value.get_i64("deduction_wait_count").unwrap_or(300000) as usize,
             cond_search: false,
             no_deduction: false,
-            ite_limit_rate: value.get_i64("ite_limit_rate").unwrap_or(4000) as usize,
+            ite_limit_rate: value.get_i64("ite_limit_rate").unwrap_or(1000) as usize,
             ite_limit_giveup: value.get_i64("ite_limit_giveup").unwrap_or(40) as usize,
+            tree_hole: false,
         }
     }
 }

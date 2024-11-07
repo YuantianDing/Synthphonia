@@ -44,6 +44,8 @@ async-broadcast = "0.7.1"
 async-oneshot = "0.5.9"
 boxcar = "0.2.6"
 async-io = "2.3.4"
+ahash = "0.8.11"
+dashmap = "6.1.0"
 
 [profile.release]
 debug = true

@@ -1,8 +1,10 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use chrono::{Datelike, Month, NaiveDate, NaiveTime};
 use itertools::Itertools;
 use regex::Regex;
+use crate::forward::executor::Enumerator;
 use crate::galloc::TryAllocForExactSizeIter;
 
 use crate::value::ConstValue;
@@ -15,7 +17,7 @@ use chrono::Timelike;
 
 impl_basic!(ParseWeekday, "weekday.parse");
 impl crate::forward::enumeration::Enumerator1 for ParseWeekday {
-    fn enumerate(&self, this: &'static ops::Op1Enum, exec: &'static crate::forward::executor::Enumerator, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
+    fn enumerate(&self, this: &'static ops::Op1Enum, exec: Arc<Enumerator>, opnt: [usize; 1]) -> Result<(), ()> { Ok(())}
 }
 
 impl_op1_opt!(ParseWeekday, "weekday.parse",

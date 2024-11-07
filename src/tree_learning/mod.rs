@@ -141,7 +141,6 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
     pub fn run(&mut self) -> bool {
         let mut counter = 1;
         while let Some(last) = self.subproblems.pop() {
-            debg2!("{:?}", self);
             let sel = self.select(&*last.borrow());
             match sel {
                 SelectResult::Accept(i) => {
@@ -154,12 +153,19 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
                     self.subproblems.push(tb);
                     *last.borrow_mut() = SubProblem::Ite{ expr, entropy, t: tb, f: fb };
                     counter += 2;
-                    if counter > self.limit { return false; }
+                    if counter > self.limit { 
+                        debg2!("{:?}", self);
+                        return false;
+                    }
                 }
-                SelectResult::Failed => return false,
+                SelectResult::Failed => {
+                    debg2!("{:?}", self);
+                    return false;
+                }
             }
         }
         self.solved = true;
+        debg2!("{:?}", self);
         true
     }
 
@@ -212,6 +218,23 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
                 cond.ite(t, f)
             }
         }
+    }
+    fn unsolved_recursive(&self, node: SubProb<'a>, result: &mut Vec<Box<[u128]>>) {
+        match &*node.borrow() {
+            SubProblem::Unsolved(bits, entropy) => {
+                result.push(bits.clone());
+            }
+            SubProblem::Accept(i) => {}
+            SubProblem::Ite { expr, entropy, t: tb, f: fb } => {
+                self.unsolved_recursive(tb, result);
+                self.unsolved_recursive(fb, result);
+            }
+        }
+    }
+    fn unsolved(&self) -> Vec<Box<[u128]>> {
+        let mut result = Vec::new();
+        self.unsolved_recursive(self.root, &mut result);
+        result
     }
     pub fn expr(&self) -> &'static Expr {
         self.expr_recursizve(self.root)

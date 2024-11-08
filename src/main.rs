@@ -136,10 +136,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
             if args.no_ite {
                 cfg.config.cond_search = true;
             }
-            let mut exec = Enumerator::new(ctx, cfg, None);
+            let (sd, rv) = async_oneshot::oneshot();
+            let mut exec = Enumerator::new(ctx, cfg, sd, None);
             info!("Deduction Configuration: {:?}", exec.deducers);
             smol::block_on(async {
-                let result = exec.solve_top_blocked();
+                exec.run();
+                let result = rv.await.unwrap().alloc_local();
+                
                 let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
                 println!("{}", func);
                 // exit(0);

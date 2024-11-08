@@ -1,5 +1,6 @@
 use std::{collections::{HashMap, VecDeque}, time::{self, Duration, Instant}};
 
+use async_broadcast::Receiver;
 use dashmap::{DashMap, Entry};
 use futures::{select, FutureExt, StreamExt};
 
@@ -8,6 +9,7 @@ use mapped_futures::mapped_futures::MappedFutures;
 use rand::Rng;
 use rand::seq::SliceRandom;
 use smol::Task;
+use spin::Mutex;
 use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr, Expression}, forward::executor::Enumerator, galloc::{self, AllocForAny}, info, never, tree_learning::{bits::BoxSliceExt, tree_learning, Bits}};
 
 
@@ -55,7 +57,7 @@ pub struct Solutions {
     ctx: Context,
     solutions: Vec<(&'static Expr, Bits)>,
     solved_examples: Bits,
-    pub threads: MappedFutures<Vec<usize>, Task<Expression>>,
+    pub threads: MappedFutures<Vec<usize>, async_oneshot::Receiver<Expression>>,
     start_time: Instant,
     last_update: Instant,
     ite_limit: usize,
@@ -171,7 +173,7 @@ impl Solutions {
         if let Some(exs) = self.generate_example_set() { 
             let ctx2 = self.ctx.with_examples(&exs);
             info!("Creating new thread with examples {:?} {:?}", exs, ctx2.output);
-            self.threads.insert(exs, new_thread(self.cfg.clone(), ctx2, self.condition_tracker));
+            self.threads.insert(exs, new_thread(self.cfg.clone(), ctx2, Some(self.condition_tracker)));
         } else {
             info!("No available example set");
         }
@@ -180,7 +182,7 @@ impl Solutions {
         info!("Creating condition search thread.");
         let mut cfg = self.cfg.clone();
         cfg.config.cond_search = true;
-        self.threads.insert((0..self.ctx.len).collect_vec(), new_thread(cfg, self.ctx.clone(), self.condition_tracker));
+        self.threads.insert((0..self.ctx.len).collect_vec(), new_thread(cfg, self.ctx.clone(), Some(self.condition_tracker)));
     }
     pub async fn solve_loop(&mut self) -> &'static Expr {
         let wait_time_period = std::cmp::min(self.cfg.config.ite_limit_rate as u64, 2000);
@@ -188,8 +190,8 @@ impl Solutions {
             select! {
                 result = self.threads.next() => {
                     let (k, v) = result.unwrap();
-                    let v = v.alloc_local();
                     info!("Found a solution {:?} with examples {:?}.", v, k);
+                    let v = v.unwrap().alloc_local();
                     self.last_update = time::Instant::now();
                     if let Some(e) = self.add_new_solution(v) {
                         return e;
@@ -211,22 +213,15 @@ impl Solutions {
     }
 }
 
-pub fn new_thread(cfg: Cfg, ctx: Context, condition_tracker: &'static ConditionTracker) -> Task<Expression> {
-    smol::spawn(async move {
-        let exec = Enumerator::new(ctx, cfg, Some(condition_tracker));
-        info!("Deduction Configuration: {:?}", exec.deducers);
-        let result = exec.solve_top_blocked().to_expression();
-        result
-    })
-}
+static TASKS: Mutex<Vec<Task<()>>> = Mutex::new(Vec::new());
 
-pub fn new_thread_with_limit(cfg: Cfg, ctx: Context) -> Task<Expression> {
-    smol::spawn(async move {
-        if let Some(p) = (move || {
-            let result = Enumerator::new(ctx, cfg, None).solve_top_with_limit().map(|e| e.to_expression());
-            result
-        })() {
-            p
-        } else { never!() }
-    })
+pub fn new_thread(cfg: Cfg, ctx: Context, condition_tracker: Option<&'static ConditionTracker>) -> async_oneshot::Receiver<Expression> {
+    let (sd, rv) = async_oneshot::oneshot();
+    let task = smol::spawn(async move {
+        let exec = Enumerator::new(ctx, cfg, sd, condition_tracker);
+        info!("Deduction Configuration: {:?}", exec.deducers);
+        exec.run();
+    });
+    TASKS.lock().push(task);
+    rv
 }

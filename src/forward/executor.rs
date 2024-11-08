@@ -10,7 +10,7 @@ use spin::Mutex;
 
 use crate::{
     backward::{ Deducer, DeducerEnum, Problem}, debg, debg2, expr::{
-         cfg::{Cfg, ProdRule}, context::Context, Expr
+         cfg::{Cfg, ProdRule}, context::Context, Expr, Expression
     }, forward::{data::{size, substr}, enumeration::ProdRuleEnumerate, executor}, galloc::AllocForAny, info, log, parser::problem::PBEProblem, solutions::ConditionTracker, text::parsing::{ParseInt, TextObjData}, utils::UnsafeCellExt, value::{ConstValue, Type, Value}, warn
 };
 use crate::expr;
@@ -78,6 +78,7 @@ pub struct Enumerator {
     pub top_task: Mutex<Task<&'static Expr>>,
     pub waiting_tasks: TaskWaitingCost,
     expr_collector: Mutex<Vec<EV>>,
+    sendback: Mutex<async_oneshot::Sender<Expression>>,
     pub start_time: time::Instant,
     pub condition_tracker: Option<&'static ConditionTracker>,
 }
@@ -89,12 +90,13 @@ impl Drop for Enumerator {
 }
 
 impl Enumerator {
-    pub fn new(ctx: Context, cfg: Cfg, condition_tracker: Option<&'static ConditionTracker>) -> Arc<Self> {
+    pub fn new(ctx: Context, cfg: Cfg, sendback: async_oneshot::Sender<Expression>, condition_tracker: Option<&'static ConditionTracker>) -> Arc<Self> {
         let all_str_const = cfg[0].rules.iter().flat_map(|x| if let ProdRule::Const(ConstValue::Str(s)) = x { Some(*s) } else { None }).collect();
         let data = Data::new(&cfg, &ctx);
         let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i).galloc()).collect_vec();
         let other = OtherData { all_str_const };
         let exec = Self {
+            sendback: sendback.into(),
             id: rand::random(),
             condition_tracker,
             counter: Counter::new().into(), 
@@ -137,15 +139,11 @@ impl Enumerator {
                 expr!(Ite {c} "" {result}).galloc(),
         }
     }
-    pub fn solve_top_blocked(self: Arc<Self>) -> &'static Expr {
+    pub fn run(self: Arc<Self>) -> () {
         let problem = Problem::root(0, self.ctx.output);
         self.counter.lock().subproblem_count += 1;
         *self.top_task.lock() = smol::spawn(self.clone().deducers[problem.nt].deduce(self.clone(), problem));
-        let _ = self.clone().run();
-        let task = std::mem::replace(&mut *self.top_task.lock(), smol::spawn(futures::future::pending()));
-        if let Some(r) = smol::block_on(task.cancel()) {
-            r
-        } else { panic!("should not reach here.") }
+        let _ = self.clone().run_inner();
         // match problems.entry((nt, value)) {
         //     Entry::Occupied(o) => o.get().clone(),
         //     Entry::Vacant(e) => {
@@ -154,15 +152,6 @@ impl Enumerator {
         //         t
         //     }
         // }
-    }
-
-    pub fn solve_top_with_limit(self: Arc<Self>) -> Option<&'static Expr> {
-        let problem = Problem::root(0, self.ctx.output);
-        self.counter.lock().subproblem_count += 1;
-        *self.top_task.lock() = smol::spawn(self.clone().deducers[problem.nt].deduce(self.clone(), problem));
-        let _ = self.clone().run();
-        let task = std::mem::replace(&mut *self.top_task.lock(), smol::spawn(futures::future::pending()));
-        smol::block_on(task.cancel())
     }
 
     pub fn size(&self) -> usize { self.counter.lock().cur_size }
@@ -184,7 +173,15 @@ impl Enumerator {
         } else if let Some(e) = self.cur_data().update(self.clone(), e, v)? {
             self.clone().collect_expr(e,v);
         }
-        if self.top_task.lock().is_finished() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
+        if self.sendback.lock().is_closed() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
+            return Err(());
+        }
+        if self.top_task.lock().is_finished() {
+            let task = std::mem::replace(&mut *self.top_task.lock(), smol::spawn(futures::future::pending()));
+            if let Some(r) = smol::block_on(task.cancel()) {
+                self.sendback.lock().send(r.to_expression()).unwrap();
+            } else { panic!("should not reach here.") }
+            
             return Err(());
         }
         Ok(())
@@ -192,7 +189,7 @@ impl Enumerator {
     fn collect_condition(self: Arc<Enumerator>, e: &Expr) {
         self.condition_tracker.map(|x| x.insert(e));
     }
-    fn run(self: Arc<Self>) -> Result<(), ()> {
+    fn run_inner(self: Arc<Self>) -> Result<(), ()> {
         let _ = self.extract_expr_collector();
         for size in 1 ..self.cfg.config.size_limit {
             let self1 = self.clone();

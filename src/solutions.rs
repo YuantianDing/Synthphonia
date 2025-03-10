@@ -76,6 +76,9 @@ impl Solutions {
             tree_hole: vec![Bits::ones(ctx.len)],
             cfg, ctx, solutions, solved_examples, threads: MappedFutures::new(), start_time: time::Instant::now(), last_update: time::Instant::now(), ite_limit: 1}
     }
+    pub fn count(&self) -> usize {
+        self.solutions.len()
+    }
 
     pub fn add_new_solution(&mut self, expr: &'static Expr) -> Option<&'static Expr> {
         if let Some(b) = self.ctx.evaluate(expr) {
@@ -185,11 +188,10 @@ impl Solutions {
             info!("No available example set");
         }
     }
-    pub fn create_cond_search_thread(&mut self) {
-        info!("Creating condition search thread.");
-        let mut cfg = self.cfg.clone();
-        cfg.config.cond_search = true;
-        self.threads.insert((0..self.ctx.len).collect_vec(), new_thread(cfg, self.ctx.clone()));
+    pub fn create_all_search_thread(&mut self) {
+        // info!("Creating condition search thread.");
+        // cfg.config.cond_search = true;
+        self.threads.insert((0..self.ctx.len).collect_vec(), new_thread(self.cfg.clone(), self.ctx.clone()));
     }
     pub async fn solve_loop(&mut self) -> &'static Expr {
         loop {

@@ -32,7 +32,7 @@ use galloc::AllocForAny;
 use itertools::Itertools;
 use mapped_futures::mapped_futures::MappedFutures;
 use parser::check::CheckProblem;
-use solutions::new_thread;
+use solutions::{new_thread, CONDITIONS};
 use tokio::task::JoinHandle;
 use value::ConstValue;
 
@@ -50,8 +50,12 @@ struct Cli {
     thread: usize,
     #[arg(long)]
     no_ite: bool,
-    #[arg(long, default_value_t=1000)]
+    #[arg(long, default_value_t=4000)]
     ite_limit_rate: usize,
+    #[arg(long, default_value_t=false)]
+    no_deduction: bool,
+    #[arg(long)]
+    with_all_example_thread: bool,
     #[arg(long)]
     extract_constants: bool,
     path: String,
@@ -130,6 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             println!("{:?}", ctx.output);
             return Ok(());
         }
+        cfg.config.no_deduction = args.no_deduction;
         cfg.config.ite_limit_rate = args.ite_limit_rate;
         if args.no_ite {
             if args.no_ite {
@@ -144,13 +149,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             let mut solutions = Solutions::new(cfg.clone(), ctx.clone());
 
             // solutions.create_cond_search_thread();
-            for i in 0..min(args.thread, ctx.len) {
+            let mut nthread = min(args.thread, ctx.len);
+            if nthread > 1  && args.with_all_example_thread {
+                solutions.create_all_search_thread();
+                nthread -= 1;
+            }
+            for _ in 0..nthread {
                 solutions.create_new_thread();
             }
 
             let result = solutions.solve_loop().await;
             let func = DefineFun { sig: problem.synthfun().sig.clone(), expr: result};
-            
+            // let nsols = solutions.count();
+            // let ncons = CONDITIONS.lock().as_ref().unwrap().len();
+            // eprintln!("nsols: {nsols}, ncons: {ncons}");
             STOP_SIGNAL.store(true, std::sync::atomic::Ordering::Relaxed);
             
             println!("{}", func);

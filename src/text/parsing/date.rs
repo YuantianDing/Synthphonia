@@ -78,10 +78,22 @@ impl ParsingOp for ParseDate {
 
 }
 
+pub fn detector(input: &str) -> bool {
+    let month_literal = "(?<month>Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?)";
+    let month = r"((?<m>\d{1,2})|(?<month>Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?))";
+    let day = r"((?<d>\d{1,2})(st|nd|rd|th)?)";
+    let year = r"(?<y>\d{2,4})";
+    let month_lit = Regex::new(month_literal).unwrap();
+    let regex1 = Regex::new(format!(r"{month}[\-/.,]+{day}?[\-/.,]+{year}?").as_str()).unwrap();
+    let regex2 = Regex::new(format!(r"{year}[\-/.,]+{month}[\-/.,]+{day}?").as_str()).unwrap();
+    let regex3 = Regex::new(format!(r"{day}[\-/.,]+{month}[\-/.,]+{year}?").as_str()).unwrap();
+    return month_lit.is_match(input) || regex1.is_match(input) || regex2.is_match(input) || regex3.is_match(input);
+}
 
 #[cfg(test)]
 mod tests {
     use crate::{text::parsing::{ParseDate, ParsingOp}};
+    use super::detector;
 
     #[test]
     fn test1() {
@@ -120,6 +132,14 @@ mod tests {
         println!("{:?}", scanner.parse_into("02 Sep 1747"))   ;
         println!("{:?}", scanner.parse_into("29 Jan 2218"))   ;
         println!("{:?}", scanner.parse_into("03 Apr 2008"))   ;
+    }
+
+    #[test]
+    fn test_detector() {
+        assert!(detector("Jan"));
+        assert!(!detector("01012001"));
+        assert!(detector("03-Nov-2114"));
+        assert!(detector("5 April 2088"));
     }
 }
 

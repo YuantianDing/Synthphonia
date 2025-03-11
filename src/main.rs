@@ -38,29 +38,51 @@ use value::ConstValue;
 
 use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, solutions::{cond_search_thread, Solutions}, value::Type};
 #[derive(Debug, Parser)]
-#[command(name = "stren")]
+#[command(name = "synthphonia")]
 struct Cli {
+    /// Log level
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
-    #[arg(short, long)]
-    debug: bool,
-    #[arg(long)]
-    showex: bool,
-    #[arg(short='j', long, default_value_t=4)]
-    thread: usize,
-    #[arg(long)]
-    no_ite: bool,
-    #[arg(long, default_value_t=4000)]
-    ite_limit_rate: usize,
-    #[arg(long, default_value_t=false)]
-    no_deduction: bool,
-    #[arg(long)]
-    with_all_example_thread: bool,
-    #[arg(long)]
-    extract_constants: bool,
-    path: String,
+    /// Path to the configuration file (enriched sygus-if)
     #[arg(short, long)]
     cfg: Option<String>,
+    
+    /// Number of threads
+    #[arg(short='j', long, default_value_t=4)]
+    thread: usize,
+    
+    /// No ITE Mode
+    #[arg(long)]
+    no_ite: bool,
+    
+    /// Set the rate limit of ITE
+    #[arg(long, default_value_t=4000)]
+    ite_limit_rate: usize,
+    
+    /// Disable deduction
+    #[arg(long, default_value_t=false)]
+    no_deduction: bool,
+    
+    /// Enable all-example thread (Using one thread for all-example thread)
+    #[arg(long)]
+    with_all_example_thread: bool,
+
+    /// Enable constant extraction.
+    #[arg(long)]
+    extract_constants: bool,
+    
+    /// Path to the input file (enriched sygus-if)
+    path: String,
+    
+    /// Debug Mode
+    #[arg(short, long)]
+    debug: bool,
+        
+    /// show examples
+    #[arg(long)]
+    showex: bool,
+
+    /// Signature Mode (Just Print the signature)
     #[arg(long)]
     sig: bool
 }
@@ -94,24 +116,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let problem = PBEProblem::parse(s.as_str()).unwrap();
         let mut cfg = Cfg::from_synthfun(problem.synthfun());
         if let Some(s) = args.cfg {
-            let s = fs::read_to_string(s).unwrap();
-            let problem = PBEProblem::parse(s.as_str()).unwrap();
-            let mut synthfun = problem.synthfun().clone();
-            synthfun.cfg.start = synthfun.cfg.get_nt_by_type(&cfg[0].ty);
-            synthfun.cfg.reset_start();
-            let mut cfg1 = Cfg::from_synthfun(&synthfun);
-            for nt in cfg1.iter_mut() {
-                nt.rules.retain(|x| !matches!(x, ProdRule::Var(_)));
+            let sygus_if = fs::read_to_string(s).unwrap();
+            cfg = enrich_configuration(sygus_if.as_str(), cfg);
+        } else {
+            let ctx = Context::from_examples(&problem.examples);
+            if text::parsing::detector(&ctx) {
+                let sygus_if = include_str!("../test/test.sl");
+                cfg = enrich_configuration(sygus_if, cfg);
+            } else {
+                let sygus_if = include_str!("../test/test2map.sl");
+                cfg = enrich_configuration(sygus_if, cfg);
             }
-            for (nt1, nt) in cfg1.iter_mut().zip(cfg.iter()) {
-                for r in nt.rules.iter() {
-                    if let ProdRule::Const(_) | ProdRule::Var(_) = r {
-                        nt1.rules.push(r.clone());
-                    }
-                }
-            }
-            cfg = cfg1;
-        };
+        }
 
         if args.extract_constants {
             let constants = problem.examples.extract_constants();
@@ -176,5 +192,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     Ok(())
 }
 
-
+fn enrich_configuration(sygus_if: &str, mut cfg: Cfg) -> Cfg {
+    let problem = PBEProblem::parse(sygus_if).unwrap();
+    let mut synthfun = problem.synthfun().clone();
+    synthfun.cfg.start = synthfun.cfg.get_nt_by_type(&cfg[0].ty);
+    synthfun.cfg.reset_start();
+    let mut cfg1 = Cfg::from_synthfun(&synthfun);
+    for nt in cfg1.iter_mut() {
+        nt.rules.retain(|x| !matches!(x, ProdRule::Var(_)));
+    }
+    for (nt1, nt) in cfg1.iter_mut().zip(cfg.iter()) {
+        for r in nt.rules.iter() {
+            if let ProdRule::Const(_) | ProdRule::Var(_) = r {
+                nt1.rules.push(r.clone());
+            }
+        }
+    }
+    return cfg1;
+}
 

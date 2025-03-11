@@ -106,6 +106,19 @@ pub trait ParsingOp {
     fn parse_into(&self, input: &'static str) -> Vec<(&'static str, ConstValue)>;
 }
 
+pub fn detector(ctx: &Context) -> bool {
+    for v in ctx.iter().chain(ctx.outputs()) {
+        if let Value::Str(a) = v {
+            for input in a {
+                if float::detector(input) || date::detector(input) || time::detector(input) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 pub mod date;
 pub use date::*;
 pub mod int;

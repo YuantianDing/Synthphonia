@@ -82,6 +82,11 @@ impl ParsingOp for ParseTime {
     }
 }
 
+pub fn detector(input: &'static str) -> bool {
+    let scanner = ParseTime(1);
+    return scanner.parse_into(input).len() > 0;
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -90,6 +95,7 @@ mod tests {
     #[test]
     fn test1() {
         let scanner = ParseTime(1);
+        println!("{:?}", scanner.parse_into("62"));
         println!("{:?}", scanner.parse_into("6:25PM"));
         println!("{:?}", scanner.parse_into("6:25:12 PM"));
         println!("{:?}", scanner.parse_into("12:0:1 AM"));

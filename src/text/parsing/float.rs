@@ -40,16 +40,28 @@ impl ParsingOp for ParseFloat {
 
 }
 
+pub fn detector(input: &str) -> bool {
+    let regex = Regex::new(format!(r"(\-|\+)?[\d,]+(\.[\d,]+([eE](\-|\+)?\d+)?)").as_str()).unwrap();
+    return regex.is_match(input);
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::text::parsing::ParsingOp;
+    use crate::text::parsing::{float::detector, ParsingOp};
 
     use super::ParseFloat;
 
     #[test]
     fn test1() {
         let scan = ParseFloat(1);
+        println!("{:?}", scan.parse_into("123"));
         println!("{:?}", scan.parse_into("+123.321E3"));
+    }
+    #[test]
+    fn test_detector() {
+        assert!(!detector("123"));
+        assert!(detector("123.0"));
+        assert!(!detector("123E1"));
     }
 }
 

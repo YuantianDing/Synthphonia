@@ -6,12 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bcmp = "0.4.1"
 bumpalo = { version = "3.13.0", features = ["collections"] }
 chrono = "0.4.31"
 clap = { version = "4.3.21", features = ["derive"] }
-date_time_parser = "0.2.0"
-dateparser = "0.2.1"
 derive_more = "0.99.17"
 enum_dispatch = "0.3.12"
 ext-trait = "1.0.1"
@@ -24,24 +21,15 @@ joinery = "3.1.0"
 kv-trie-rs = "0.1.2"
 lazy_static = "1.4.0"
 mapped_futures = "0.1.8"
-noop-waker = "0.1.0"
 pest = "2.7.3"
 pest_derive = "2.7.3"
-pin-cell = "0.2.0"
-pin-weak = "1.1.0"
 rand = "0.8.5"
-refbox = "0.3.0"
 regex = "1.10.2"
 serde = { version = "1.0.183", features = ["derive"] }
 smallvec = "1.11.1"
 spin = "0.9.8"
 tokio = { version = "1.37.0", features = ["full", "rt"] }
-topological-sort = "0.2.2"
-you-can = "0.0.14"
-rc_async = { path = "../rc_async"}
+rc_async = { git = "https://github.com/YuantianDing/rc_async.git" }
 radix_trie = "0.2.1"
 counter = "0.6.0"
 ahash = "0.8.11"
-
-[profile.release]
-debug = true

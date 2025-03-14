@@ -3,11 +3,11 @@
 
 Synthphonia is the name for the internal algorithm used by [DryadSynth](https://github.com/purdue-cap/DryadSynth) string solver.
 
-To obtain the result comparing other solvers, refer to [docs/artifact.md](https://github.com/YuantianDing/Synthphonia/blob/main/docs/artifact.md).
-
 ## Build
 
 Simply build with `cargo build --release`.
+
+To obtain the result comparing other solvers, refer to [docs/artifact.md](https://github.com/YuantianDing/Synthphonia/blob/main/docs/artifact.md).
 
 ## Usage
 

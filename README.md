@@ -5,7 +5,7 @@ Synthphonia is the name for the internal algorithm used by [DryadSynth](https://
 
 ## Build
 
-Simply build with `cargo build --release`.
+Simply build with `cargo build --release`, and test with `cargo test`.
 
 To obtain the result comparing other solvers, refer to [docs/artifact.md](https://github.com/YuantianDing/Synthphonia/blob/main/docs/artifact.md).
 

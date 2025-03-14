@@ -13,7 +13,8 @@ Simply build with `cargo build --release`.
 Usage: synthphonia [OPTIONS] <PATH>
 
 Arguments:
-  <PATH>  Path to the input file: enriched sygus-if (.sl) for synthesis or smt2 (.smt2) to check the result
+  <PATH>  Path to the input file: enriched sygus-if (.sl) for synthesis
+          or smt2 (.smt2) to check the result
 
 Options:
   -v, --verbose...

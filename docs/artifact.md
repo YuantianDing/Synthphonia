@@ -13,9 +13,9 @@
 
 The easiest way to build this artifact is to use our alpine VM images at [Release Page](https://github.com/YuantianDing/Synthphonia/releases). Simply load this image to VM manager like VirtualBox, and select the desired computational resouces to run this artifact. 
 
-The VM will open an SSH port at 2222. You can simply connect to this port and run `~/artifact/scripts/alpine-setup` to build all the solvers. The process will take nearly 10 minute on a 16 cpus virtual machine. 
+The VM will open an SSH port at 2222. You can simply connect to this port and run `~/artifact/scripts/alpine-setup.sh` to build all the solvers. The process will take nearly 10 minute on a 16 cpus virtual machine. 
 
-You can also download all `artifact.zip` without the VM image at our [Release Page](https://github.com/YuantianDing/Synthphonia/releases), here we scratch the steps to build the artifact. You can also refer to `~/artifact/scripts/alpine-setup` for detailed commands.
+You can also download all `artifact.zip` without the VM image at our [Release Page](https://github.com/YuantianDing/Synthphonia/releases), here we scratch the steps to build the artifact. You can also refer to `~/artifact/scripts/alpine-setup.sh` for detailed commands.
 
 * Duet: `solvers/duet/build` script shows how to install duet. You need to install OPAM along with the following packages: `z3.4.8.9`, `containers`, `containers-data`, `batteries`, `ocamlgraph`, `sexplib`.
     Make sure to use the corresponding version of those package supported by the ocaml compiler. Note that `python2` is required to build `z3.4.8.9`.

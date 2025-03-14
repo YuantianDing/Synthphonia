@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn test_cfg() {
         log::set_log_level(5);
-        let s = fs::read_to_string("test/phone-4.sl").unwrap();
+        let s = fs::read_to_string("test/test.sl").unwrap();
         let problem = PBEProblem::parse(s.as_str()).unwrap();
         let cfg = Cfg::from_synthfun(&problem.synthfun());
         println!("{:?}", cfg);

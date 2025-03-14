@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let s = fs::read_to_string("a.smt2").unwrap();
+        let s = fs::read_to_string("test/a.smt2").unwrap();
         let a = CheckProblem::parse(s.as_str()).unwrap();
         println!("{:?}", a);
     }

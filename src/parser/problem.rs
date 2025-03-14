@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn parse_test() {
-        let s = fs::read_to_string("test/phone-4.sl").unwrap();
+        let s = fs::read_to_string("test/test.sl").unwrap();
         let result = PBEProblem::parse(s.as_str());
         println!("{:?}", result.map(|x| x.synthfun().cfg.clone()));
     }

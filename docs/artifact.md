@@ -13,7 +13,7 @@
 
 The easiest way to build this artifact is to use our alpine VM images at [Release Page](https://github.com/YuantianDing/Synthphonia/releases). Simply load this image to VM manager like VirtualBox, and select the desired computational resouces to run this artifact. 
 
-The VM will open an SSH port at 2222. You can simply connect to this port and run `~/artifact/scripts/alpine-setup.sh` to build all the solvers. The process will take nearly 10 minutes on a 16 cpus virtual machine. 
+The VM will open an SSH port at 2222. You can simply connect to this port and run `~/artifact/scripts/alpine-setup.sh` to build all the solvers. The process will take nearly 10 minutes on a 16-cpu virtual machine. 
 
 You can also download all `artifact.zip` without the VM image at our [Release Page](https://github.com/YuantianDing/Synthphonia/releases), here we scratch the steps to build the artifact. You can also refer to `~/artifact/scripts/alpine-setup.sh` for detailed commands.
 

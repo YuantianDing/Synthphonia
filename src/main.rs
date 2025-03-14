@@ -43,7 +43,7 @@ struct Cli {
     /// Log level
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
-    /// Path to the configuration file (enriched sygus-if)
+    /// Path to the context-free grammar configuration (enriched sygus-if)
     #[arg(short, long)]
     cfg: Option<String>,
     
@@ -51,15 +51,15 @@ struct Cli {
     #[arg(short='j', long, default_value_t=4)]
     thread: usize,
     
-    /// No ITE Mode
+    /// No ITE Mode: Generate results without `ite` operator
     #[arg(long)]
     no_ite: bool,
     
-    /// Set the rate limit of ITE
+    /// Set the rate limit of ITE (in milliseconds), i.e., how much time (without new solutions) does it take for the `ite_limit` to increment by one.
     #[arg(long, default_value_t=4000)]
     ite_limit_rate: usize,
     
-    /// Disable deduction
+    /// Disable deduction, i.e., Enumeration + ACS.
     #[arg(long, default_value_t=false)]
     no_deduction: bool,
     
@@ -71,18 +71,18 @@ struct Cli {
     #[arg(long)]
     extract_constants: bool,
     
-    /// Path to the input file (enriched sygus-if)
+    /// Path to the input file: enriched sygus-if (.sl) for synthesis or smt2 (.smt2) to check the result.
     path: String,
     
-    /// Debug Mode
+    /// Debug Mode (More assertions)
     #[arg(short, long)]
     debug: bool,
         
-    /// show examples
+    /// Show examples (debugging)
     #[arg(long)]
     showex: bool,
 
-    /// Signature Mode (Just Print the signature)
+    /// Show Signature (Just Print the signature without solving)
     #[arg(long)]
     sig: bool
 }

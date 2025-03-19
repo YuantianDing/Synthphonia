@@ -39,10 +39,17 @@ The artifact consists of the following files and directories:
 ```py
 artifact/
     benchmarks/       # 3 categories of benchmarks mentioned used in the paper
-        duet/
+        duet/         # For each categories of benchmarks, we provide files of different format.
+            sygusif/  # Duet benchmark in `sygusif` format
+            sygusif2/ # Duet benchmark in `sygusif2 format
+            table/    # Duet benchmark in `sygusif2` format
+            test/     # Testing examples of Duet benchmark (`sygusif`)
+            ......
         prose/
+            ......
         hardbench/
-    result_ref/       # Referential result in the paper.
+            ......
+    result_ref/       # Referential result in the paper. (See `result/` for more details)
     solvers/          # Source code or binaries (in the trimmed docker image) of the solvers
         duet/
         probe/
@@ -69,6 +76,8 @@ artifact/
 
 `test.py draw` will generate figures under `figures` directory, after all results are generated. 
 
+Here we list some other functionality of `test.py`:
+
 ```md
 Usage: test.py [OPTIONS] COMMAND [ARGS]...
 
@@ -81,6 +90,42 @@ Commands:
   run   Run all benchmarks in a benchmark suite (all, duet, hardbench, prose)
   xlsx  Export results to xlsx
 ```
+
+To run all benchmarks on one benchmark categorys, simply run `./test.py run [duet/hardbench/prose]`.
+
+For more detailed configurations, you can edit the `test.py` file directly to setup the command to run, the testing benchmark to use, the configuration inside `test.py` is shown as follows:
+
+```py
+SUITES = {
+    "duet": BenchmarkSuite(
+        "result/duet",
+        benchmark_set= get_benchmark_names("benchmark/duet/table"),
+        run_configs= [
+            CVCConfig("CVC4", "benchmark/duet/sygusif", ["cvc4", "--lang=sygus1"], test_benchmark_dir="benchmark/duet/test"),
+            ProbeConfig("Probe", "benchmark/duet/sygusif", ["solvers/probe/exec.sh"], test_benchmark_dir="benchmark/duet/test"),
+            FFConfig("FlashFill", "benchmark/duet/table", ["solvers/prose/exec"], test_benchmark_dir="benchmark/duet/test", display_name="FlashFill++"),
+            DuetConfig("Duet", "benchmark/duet/sygusif", ["solvers/duet/exec.sh"], test_benchmark_dir="benchmark/duet/test"),
+            RunConfig("Synthphonia", "benchmark/duet/sygusif", ["solvers/synthphonia/synthphonia", "--cfg", "solvers/synthphonia/test/test2map.sl"], test_benchmark_dir="benchmark/duet/test"),
+            ......
+        ]
+    ),
+    ......
+}
+```
+
+Basically, each `RunConfig` has 4 fields: 
+
+```py
+class RunConfig:
+    name: str                              # The name of the benchmark, `test_utils` will convert this filed to `snake_case` as identifier.
+    benchmark_dir: str                     # The directory of the benchmark to run.
+    cmd: List[str]                         # The command to run
+    test_benchmark_dir: str | None = None  # Directory of testing benchmarks.
+```
+
+However, since different solvers have different output, we provide `CVCConfig`, `ProbeConfig`, `FFConfig` and `DuetConfig` as subclasses of `RunConfig`, which has its own way of extracting outputs and verifying the results.
+
+To change the timeout of running the solvers, please update the `TIMEOUT` variable in `test_utils/run.py`.
 
 ## Experiment More
 

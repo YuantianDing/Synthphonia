@@ -93,7 +93,7 @@ Commands:
 
 To run all benchmarks on one benchmark categorys, simply run `./test.py run [duet/hardbench/prose]`.
 
-For more detailed configurations, you can edit the `test.py` file directly to setup the command to run, the testing benchmark to use, the configuration inside `test.py` is shown as follows:
+For more detailed configurations, you can edit the `test.py` file directly to setup the command to run, the testing benchmark to use. The configuration inside `test.py` is shown as follows:
 
 ```py
 SUITES = {

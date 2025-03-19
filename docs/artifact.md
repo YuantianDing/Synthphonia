@@ -11,7 +11,7 @@
 
 ## Getting the Artifact
 
-We provide a prebuilt Docker image for our artifact, available on our [Release Page](https://github.com/YuantianDing/Synthphonia/releases). This image allows you to run the artifact directly, without manually setting up all solvers.
+We provide a prebuilt Docker image for our artifact, available on [Dockerhub](https://hub.docker.com/r/yuantianding/synthphonia) and our [Release Page](https://github.com/YuantianDing/Synthphonia/releases). This image allows you to run the artifact directly, without manually setting up all solvers.
 
 ### Building the Artifact Locally
 

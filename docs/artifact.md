@@ -56,7 +56,7 @@ artifact/
         prose/
         synthphonia/
     test_utils/       # A Python module required by `test.py`
-    test.py           # The main script to run experiments
+    test.py           # Testing configuraion, also the script to run tests.
     Dockerfile        # Used to build docker image
 
     # To be generated
@@ -72,28 +72,44 @@ artifact/
 
 ## Run the tests
 
-`test.py` provides a command to run/export/view the primary results from the paper. To run all the test, simply run `./test.py run all`, the result will be generated under `result` directory.
+### Basic Usage
 
-`test.py draw` will generate figures under `figures` directory, after all results are generated. 
+`test.py` is a configuration and a script to run/export/view the primary results from the paper. To run all the test, simply run `./test.py run all`, the result will be generated under `result` directory. This command can be interrupted at any time. It will continue working on the test based on files in `result` directory.
 
-Here we list some other functionality of `test.py`:
+`test.py status` will provide the current status of `result` directory. 
 
-```md
+`test.py draw` will generate figures under `figures` directory, after all results are generated. It will give error if **not all results are generated**.
+
+### Command-line interface
+
+```py
 Usage: test.py [OPTIONS] COMMAND [ARGS]...
+
+  CLI for running and exporting benchmark results. Available solvers for each
+  benchmark:
+
+  duet: cvc4, probe, flashfill, duet, synthphonia, acs1, acs2, acs4, acs8
+
+  hardbench: cvc4, flashfill, probe, duet, synthphonia, acs1, acs2, acs4, acs8
+
+  prose: cvc4, flashfill, duet, probe, synthphonia, acs1, acs2, acs4, acs8
 
 Options:
   --help  Show this message and exit.
 
 Commands:
-  csv   Export results of a benchmark suite (duet, hardbench, prose) to csv
-  draw  Draw figures in `figures` directory (Need all results collected)
-  run   Run all benchmarks in a benchmark suite (all, duet, hardbench, prose)
-  xlsx  Export results to xlsx
+  csv     Export results of a benchmark suite (duet, hardbench, prose) to csv.
+  draw    Draw figures in `figures` directory.
+  run     Run all benchmarks in a benchmark suite (all, duet, hardbench, prose).
+  status  Print current running status.
+  xlsx    Export results to xlsx.
 ```
 
-To run all benchmarks on one benchmark categorys, simply run `./test.py run [duet/hardbench/prose]`.
+### Further configure test cases
 
-For more detailed configurations, you can edit the `test.py` file directly to setup the command to run, the testing benchmark to use. The configuration inside `test.py` is shown as follows:
+To run all benchmarks on one benchmark categories, simply run `./test.py run [duet/hardbench/prose]`.
+
+For more detailed configurations, you can edit the `test.py` file directly to configure the commands and benchmarks. The structure of `test.py` is shown as follows:
 
 ```py
 SUITES = {
@@ -111,9 +127,20 @@ SUITES = {
     ),
     ......
 }
+
+def draw():
+    """Draw figures in `figures` directory."""
+    ......
+
+if __name__ == '__main__':
+    cli = testing_cli(SUITES)
+    cli.command(draw)
+    cli()
 ```
 
-Basically, each `RunConfig` has 4 fields: 
+Basically, `test.py` has a global variable `SUITES`, which includes all `BenchmarkSuite`. Each `BenchmarkSuite` has a field `run_configs` which lists all available configurations.
+
+Each `RunConfig` has 4 fields, shown as follows: 
 
 ```py
 class RunConfig:
@@ -125,8 +152,23 @@ class RunConfig:
 
 However, since different solvers have different output, we provide `CVCConfig`, `ProbeConfig`, `FFConfig` and `DuetConfig` as subclasses of `RunConfig`, which has its own way of extracting outputs and verifying the results.
 
-To change the timeout of running the solvers, please update the `TIMEOUT` variable in `test_utils/run.py`.
+Note that we hardcoded timeout in `test_utils`. To change the timeout of running the solvers, please update the `TIMEOUT` variable in `test_utils/run.py`.
+
+### JSON Result File
+
+Note that one can view the generated JSON file directly by running `cat result/[bench]/[solver]/[result]`. The result file has the following structure:
+
+```js
+{
+    "status": "S" // for success, or "TO" for timeout and "E" for error.
+    "stdout": ...,
+    "stderr": ...,
+    "returncode": ...,
+    "time": ...,
+    "cmd": ...,
+}
+```
 
 ## Experiment More
 
-See [YuantianDing/Synthphonia](https://github.com/YuantianDing/Synthphonia) to play with Synthphonia!
+See [YuantianDing/Synthphonia](https://github.com/YuantianDing/Synthphonia) for the command-line usage of Synthphonia.

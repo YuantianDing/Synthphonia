@@ -93,7 +93,7 @@ impl Executor {
         unsafe { self.waiting_tasks.as_mut() }
     }
     pub fn extract_expr_collector(&self) -> Vec<EV> {
-        self.expr_collector.replace(Vec::new())
+        UnsafeCellExt::replace(&self.expr_collector, Vec::new())
     }
     pub fn cur_data(&self) -> &Data {
         &self.data[self.cur_nt.get()]

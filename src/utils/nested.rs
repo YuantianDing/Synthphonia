@@ -64,7 +64,7 @@ impl<T> NestedIntervalTree<T> {
             _ => None,
         }
     }
-    pub fn superrange_using_iter<'a: 'b, 'b>(&'a self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b) -> Box<dyn Iterator<Item=&T> + 'b> {
+    pub fn superrange_using_iter<'a: 'b, 'b>(&'a self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b) -> Box<dyn Iterator<Item=&'b T> + 'b> {
         let head = ranges.next();
         match (self, head) {
             (NestedIntervalTree::Node(maps), Some(head)) => {
@@ -79,7 +79,7 @@ impl<T> NestedIntervalTree<T> {
             _ => panic!("DeepIntervalTree have a different number of ranges indices."),
         }
     }
-    pub fn subrange_using_iter<'a: 'b, 'b>(&'a self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b) -> Box<dyn Iterator<Item=&T> + 'b> {
+    pub fn subrange_using_iter<'a: 'b, 'b>(&'a self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b) -> Box<dyn Iterator<Item=&'b T> + 'b> {
         let head = ranges.next();
         match (self, head) {
             (NestedIntervalTree::Node(maps), Some(head)) => {
@@ -94,16 +94,16 @@ impl<T> NestedIntervalTree<T> {
             _ => panic!("DeepIntervalTree have a different number of ranges indices."),
         }
     }
-    pub fn superrange_multiple<'a: 'b, 'b>(&'a self, ranges: &'b Vec<Vec<Range<usize>>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+    pub fn superrange_multiple<'a: 'b, 'b>(&'a self, ranges: &'b Vec<Vec<Range<usize>>>) -> Box<dyn Iterator<Item=&'b T> + 'b> {
         self.superrange_using_iter(ranges.iter().map(|x| x.iter().cloned()))
     }
-    pub fn subrange_multiple<'a: 'b, 'b>(&'a self, ranges: &'b Vec<Vec<Range<usize>>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+    pub fn subrange_multiple<'a: 'b, 'b>(&'a self, ranges: &'b Vec<Vec<Range<usize>>>) -> Box<dyn Iterator<Item=&'b T> + 'b> {
         self.subrange_using_iter(ranges.iter().map(|x| x.iter().cloned()))
     }
-    pub fn superrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+    pub fn superrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&'b T> + 'b> {
         self.superrange_using_iter(ranges.into_iter().map(|x| std::iter::once(x)))
     }
-    pub fn subrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&T> + 'b> {
+    pub fn subrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&'b T> + 'b> {
         self.subrange_using_iter(ranges.into_iter().map(|x| std::iter::once(x)))
     }
 }

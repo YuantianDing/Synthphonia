@@ -1,6 +1,6 @@
 use std::{
     cell::UnsafeCell,
-    collections::{hash_map},
+    collections::hash_map,
     task::Poll, ops::Index,
 };
 

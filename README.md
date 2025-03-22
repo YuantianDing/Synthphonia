@@ -98,3 +98,7 @@ Synthphonia uses an enriched grammar of sygus-if to specify the grammar by algor
       ))
 ))
 ```
+
+# Publications
+
+- [A Concurrent Approach to String Transformation Synthesis.](https://yuantianding.github.io/uploads/PLDI_2025.pdf) Yuantian Ding, Xiaokang Qiu, Conditional Accepted by PLDI 2025. [author version](https://yuantianding.github.io/uploads/PLDI_2025.pdf).

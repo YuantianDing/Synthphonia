@@ -8,7 +8,7 @@ description = "DryadSynth solver for string transformation programs"
 homepage = "https://github.com/YuantianDing/Synthphonia"
 repository = "https://github.com/YuantianDing/Synthphonia"
 readme = "README.md"
-keywords = ["program synthesis", "synthesis",  "programming", "purdue", "xiaokang", "qiu", "flashfill", "dryadsynth", "string", "synthphonia"]
+keywords = ["synthesis",  "flashfill", "dryadsynth", "string", "program"]
 
 [dependencies]
 bumpalo = { version = "3.13.0", features = ["collections"] }
@@ -34,7 +34,7 @@ serde = { version = "1.0.183", features = ["derive"] }
 smallvec = "1.11.1"
 spin = "0.9.8"
 tokio = { version = "1.37.0", features = ["full", "rt"] }
-rc_async = { git = "https://github.com/YuantianDing/rc_async.git" }
+simple-rc-async = "0.1.0"
 radix_trie = "0.2.1"
 counter = "0.6.0"
 ahash = "0.8.11"

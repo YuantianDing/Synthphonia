@@ -5,7 +5,7 @@ use figment::util::diff_paths;
 use futures::{future::select, FutureExt};
 use futures_core::Future;
 use itertools::Itertools;
-use rc_async::task::{self, JoinHandle};
+use simple_rc_async::task::{self, JoinHandle};
 
 use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::executor::Executor, info, text::formatting::Op1EnumToFormattingOp, utils::select_ret5, DEBUG};
 use crate::{galloc::{self, AllocForAny, AllocForExactSizeIter, AllocForIter}, never, utils::{pending_if, select_all, select_ret, select_ret3, select_ret4, UnsafeCellExt}, value::Value};

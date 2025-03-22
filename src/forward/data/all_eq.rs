@@ -6,7 +6,7 @@ use std::{
 
 use derive_more::{Constructor, Deref, From, Into, TryInto};
 use futures::Future;
-use rc_async::sync::broadcast::MaybeReady;
+use simple_rc_async::sync::broadcast::MaybeReady;
 
 use crate::{
     galloc::AllocForAny,

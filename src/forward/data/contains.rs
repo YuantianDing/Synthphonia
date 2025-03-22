@@ -1,7 +1,7 @@
 use std::{collections::HashMap, cell::UnsafeCell};
 
 use itertools::Itertools;
-use rc_async::sync::broadcast;
+use simple_rc_async::sync::broadcast;
 
 use crate::{value::Value, utils::UnsafeCellExt};
 

@@ -5,7 +5,7 @@ use std::{
 use derive_more::{Constructor, Deref, From, Into};
 use futures::StreamExt;
 use itertools::Itertools;
-use rc_async::{sync::{broadcast, broadcastque}, task::{self, JoinHandle}};
+use simple_rc_async::{sync::{broadcast, broadcastque}, task::{self, JoinHandle}};
 
 use crate::{
     backward::{ Deducer, DeducerEnum, Problem}, debg, debg2, expr::{

@@ -6,7 +6,7 @@ use std::{
 use derive_more::{Constructor, Deref, From, Into, TryInto};
 use futures::StreamExt;
 use itertools::Itertools;
-use rc_async::sync::broadcast;
+use simple_rc_async::sync::broadcast;
 
 use crate::{
     debg, expr::Expr, forward::executor::Executor, galloc::AllocForAny, info, log, utils::UnsafeCellExt, value::Value

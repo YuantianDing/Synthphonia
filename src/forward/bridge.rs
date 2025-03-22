@@ -3,7 +3,7 @@ use std::{cell::UnsafeCell, task::{Poll, Waker}};
 
 use futures::FutureExt;
 use itertools::Itertools;
-use rc_async::sync::oneshot;
+use simple_rc_async::sync::oneshot;
 use tokio::task::JoinHandle;
 
 use crate::{expr::{Expr, Expression}, info, utils::UnsafeCellExt};

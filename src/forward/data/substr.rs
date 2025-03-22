@@ -6,7 +6,7 @@ use derive_more::{Deref, DerefMut};
 use futures::{SinkExt, StreamExt};
 use iset::IntervalMap;
 use itertools::{Either, Itertools};
-use rc_async::sync::broadcast;
+use simple_rc_async::sync::broadcast;
 
 use crate::{closure, expr::Expr, forward::executor::Executor, never, utils::{nested::{IntervalTreeN, NestedIntervalTree}, UnsafeCellExt}, value::Value};
 

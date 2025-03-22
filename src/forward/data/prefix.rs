@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use iset::IntervalMap;
 use itertools::{Either, Itertools};
 use radix_trie::Trie;
-use rc_async::sync::broadcast;
+use simple_rc_async::sync::broadcast;
 use tokio::{runtime::Handle, sync::mpsc};
 
 use crate::{closure, debg2, expr::Expr, forward::executor::Executor, utils::{nested::RadixTrieN, UnsafeCellExt}, value::{self, Value}};

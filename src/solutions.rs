@@ -84,7 +84,7 @@ impl Solutions {
         if let Some(b) = self.ctx.evaluate(expr) {
             // Updating solutions
             for (_, bits) in self.solutions.iter() {
-                if b.subset(&bits) {
+                if b.subset(bits) {
                     return None;
                 }
             }
@@ -213,7 +213,7 @@ impl Solutions {
                         self.ite_limit += 1;
                         self.last_update = time::Instant::now();
                     }
-                    if let Some(e) = self.generate_result(self.threads.len() != 0) {
+                    if let Some(e) = self.generate_result(!self.threads.is_empty()) {
                         for v in self.threads.iter() { v.abort(); }
                         return e;
                     }
@@ -227,8 +227,8 @@ pub fn new_thread(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
     tokio::spawn(async move {
         let exec = Executor::new(ctx, cfg);
         info!("Deduction Configuration: {:?}", exec.deducers);
-        let result = exec.solve_top_blocked().to_expression();
-        result
+        
+        exec.solve_top_blocked().to_expression()
     })
 }
 
@@ -239,10 +239,10 @@ pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> JoinHandle<Expression> 
 
 pub fn new_thread_with_limit(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
     tokio::spawn(async move {
-        if let Some(p) = (move || {
-            let result = Executor::new(ctx, cfg).solve_top_with_limit().map(|e| e.to_expression());
-            result
-        })() {
+        if let Some(p) = {
+            
+            Executor::new(ctx, cfg).solve_top_with_limit().map(|e| e.to_expression())
+        } {
             p
         } else { never!() }
     })

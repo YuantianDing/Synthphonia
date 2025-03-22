@@ -19,6 +19,12 @@ use ahash::AHashMap as HashMap;
 #[derive(From, Deref)]
 pub struct Data(UnsafeCell<HashMap<Value, MaybeReady<&'static Expr>>>);
 
+impl Default for Data {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Data {
     pub fn new() -> Self { Self(HashMap::new().into()) }
 
@@ -56,7 +62,7 @@ impl Data {
                 v.insert(MaybeReady::Ready(e));
             }
         }
-        sd.map(|x| x.send(e));
+        if let Some(x) = sd { x.send(e) }
     }
 
     #[inline(always)]
@@ -77,7 +83,7 @@ impl Data {
     }
 
     #[inline(always)]
-    pub fn contains<'a>(&'a self, v: Value) -> bool {
+    pub fn contains(&self, v: Value) -> bool {
         match unsafe{ self.as_mut().entry(v) } {
             hash_map::Entry::Occupied(o) => true,
             hash_map::Entry::Vacant(v) => false,

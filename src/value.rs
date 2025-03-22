@@ -121,7 +121,7 @@ impl Value {
         // Memory Leak !!!
         match self {
             Value::Str(s) => s.iter().flat_map(|x| (0..x.len()).map(|i| &x[i..i+1]) ).galloc_collect(),
-            Value::ListStr(l) => l.iter().flat_map(|x| x.iter().map(|p| *p)).galloc_collect(),
+            Value::ListStr(l) => l.iter().flat_map(|x| x.iter().copied()).galloc_collect(),
             _ => panic!("Mismatched type: to_liststr_leak")
         }
     }
@@ -130,7 +130,7 @@ impl Value {
         // Memory Leak !!!
         match self {
             Value::Str(s) => Some(s.iter().flat_map(|x| (0..x.len()).map(|i| &x[i..i+1]) ).galloc_collect()),
-            Value::ListStr(l) => Some(l.iter().flat_map(|x| x.iter().map(|p| *p)).galloc_collect()),
+            Value::ListStr(l) => Some(l.iter().flat_map(|x| x.iter().copied()).galloc_collect()),
             _ => None,
         }
     }
@@ -166,26 +166,26 @@ impl Value {
         self.try_into().unwrap()
     }
     pub fn to_bits(self) -> Bits {
-        Bits::from_bit_siter(self.to_bool().into_iter().cloned())
+        Bits::from_bit_siter(self.to_bool().iter().cloned())
     }
     pub fn is_all_true(&self) -> bool {
         if let Self::Bool(b) = self {
-            b.iter().all(|x| *x == true)
+            b.iter().all(|x| *x)
         } else { false }
     }
     pub fn is_all_false(&self) -> bool {
         if let Self::Bool(b) = self {
-            b.iter().all(|x| *x == false)
+            b.iter().all(|x| !(*x))
         } else { false }
     }
     pub fn is_all_empty(&self) -> bool {
         if let Self::Str(b) = self {
-            b.iter().all(|x| *x == "")
+            b.iter().all(|x| x.is_empty())
         } else { false }
     }
     pub fn bool_not(self) -> Value {
         let this = self.to_bool();
-        this.into_iter().map(|x| !x).galloc_scollect().into()
+        this.iter().map(|x| !x).galloc_scollect().into()
     }
     pub fn eq_count(&self, other: &Self) -> usize {
         match (self, other) {
@@ -292,11 +292,11 @@ pub fn consts_to_value(consts: Vec<ConstValue>) -> Value {
 
 #[macro_export]
 macro_rules! const_value {
-    (true) => {crate::value::ConstValue::Bool(true)};
-    (false) => {crate::value::ConstValue::Bool(false)};
+    (true) => {$crate::value::ConstValue::Bool(true)};
+    (false) => {$crate::value::ConstValue::Bool(false)};
     ($l:literal) => { 
         if let Some(f) = (&$l as &dyn std::any::Any).downcast_ref::<&str>() {
-            crate::value::ConstValue::Str(f)
+            $crate::value::ConstValue::Str(f)
         } else if let Some(f) = (&$l as &dyn std::any::Any).downcast_ref::<i32>() {
             crate::value::ConstValue::Int(*f as i64)
         } else if let Some(f) = (&$l as &dyn std::any::Any).downcast_ref::<f64>() {

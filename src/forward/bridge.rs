@@ -12,6 +12,12 @@ use crate::{expr::{Expr, Expression}, info, utils::UnsafeCellExt};
 
 pub struct Bridge(UnsafeCell<Vec<(JoinHandle<Expression>, oneshot::Sender<Expression>)>>);
 
+impl Default for Bridge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Bridge {
     pub fn new() -> Self {
         Self(Vec::new().into())
@@ -31,7 +37,7 @@ impl Bridge {
         *self.inner() = Vec::new();
     }
     pub fn check(&self) {
-        let vec = std::mem::replace(self.inner(), Vec::new());
+        let vec = std::mem::take(self.inner());
         let mut v = vec.into_iter().flat_map(|(mut h, s)| {
             let mut cx = std::task::Context::from_waker(Waker::noop());
             if let Poll::Ready(r) = h.poll_unpin(&mut cx) { 

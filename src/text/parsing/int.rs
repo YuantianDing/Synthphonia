@@ -25,7 +25,7 @@ impl_op1_opt!(ParseInt, "int.parse",
 impl ParsingOp for ParseInt {
 
     fn parse_into(&self, input: &'static str) -> std::vec::Vec<(&'static str, ConstValue)> {
-        let regex = Regex::new(format!(r"(\-|\+)?\d+").as_str()).unwrap();
+        let regex = Regex::new(r"(\-|\+)?\d+".to_string().as_str()).unwrap();
         let iter = regex.captures_iter(input);
         let mut result = Vec::new();
         for m in iter {

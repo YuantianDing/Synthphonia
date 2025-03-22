@@ -37,7 +37,7 @@ impl Data {
     }
     pub fn expected_contains(&self, value: Value) -> bool {
         if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
-            v.iter().cloned().zip(self.expected.iter().cloned()).all(|(a, b)| b.contains(a) && a.len() > 0)
+            v.iter().cloned().zip(self.expected.iter().cloned()).all(|(a, b)| b.contains(a) && !a.is_empty())
         } else { false }
     }
     

@@ -51,7 +51,7 @@ pub struct Cfg {
 
 impl Cfg {
     pub fn parse(pair: Pair<'_, Rule>) -> Result<Self, Error> {
-        let mut cfgvec = pair.into_inner().into_iter().collect_vec();
+        let mut cfgvec = pair.into_inner().collect_vec();
         let config = cfgvec.last().unwrap().clone();
         let config = if config.as_rule() == Rule::config {
             cfgvec.pop();
@@ -174,7 +174,7 @@ impl PBEProblem {
         &self.synthfuns[self.problem_index]
     } 
     
-    pub fn parse<'i>(input: &'i str) -> Result<PBEProblem, Error> {
+    pub fn parse(input: &str) -> Result<PBEProblem, Error> {
         let [file]: [_; 1] = ProblemParser::parse(Rule::file, input)?.collect_vec().try_into().unwrap();
         let [_, logic, synthproblem, examples, checksynth]: [_; 5] = file.into_inner().collect_vec().try_into().unwrap();
         let [logic]: [_; 1] = logic.into_inner().collect_vec().try_into().unwrap();

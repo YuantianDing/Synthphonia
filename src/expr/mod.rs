@@ -26,14 +26,14 @@ pub enum Expr {
 
 impl Expr {
     pub fn eval(&self, ctx: &Context) -> Value {
-        let result = match self {
+        
+        match self {
             Expr::Const(c) => c.value(ctx.len()),
             Expr::Var(index) => ctx[*index],
             Expr::Op1(op1, a1) => op1.eval(a1.eval(ctx)),
             Expr::Op2(op2, a1, a2) => op2.eval(a1.eval(ctx), a2.eval(ctx)),
             Expr::Op3(op3, a1, a2, a3) => op3.eval(a1.eval(ctx), a2.eval(ctx), a3.eval(ctx)),
-        };
-        result
+        }
     }
     pub fn cost(&self) -> usize {
         match self {
@@ -70,7 +70,7 @@ impl Expr {
     }
     pub fn to_expression(&self) -> Expression {
         match self {
-            Expr::Const(c) => Expression::Const(c.clone()),
+            Expr::Const(c) => Expression::Const(*c),
             Expr::Var(v) => Expression::Var(*v),
             Expr::Op1(op, a1) => Expression::Op1((*op).clone(), a1.to_expression().into()),
             Expr::Op2(op, a1, a2) => Expression::Op2((*op).clone(), a1.to_expression().into(), a2.to_expression().into()),
@@ -107,8 +107,8 @@ impl Expression {
 
 #[macro_export]
 macro_rules! expr_no_use {
-    ($l:literal) => { crate::expr::Expr::Const(crate::const_value!($l))};
-    ([$l:literal]) => { crate::expr::Expr::Var($l)};
+    ($l:literal) => { $crate::expr::Expr::Const($crate::const_value!($l))};
+    ([$l:literal]) => { $crate::expr::Expr::Var($l)};
     ({$l:expr}) => { $l };
     ($op:ident $a1:tt) => { 
         crate::expr::Expr::Op1(Op1Enum::$op($op::default()).galloc(), crate::expr![$a1].galloc())

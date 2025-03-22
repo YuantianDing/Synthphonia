@@ -24,7 +24,7 @@ impl<T: Clone> NestedIntervalTree<T> {
             Self::Leaf(value)
         }
     }
-    pub fn insert_using_iter<'a: 'b, 'b>(&'a mut self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b, update: &impl Fn(&mut T) -> (), default: T) {
+    pub fn insert_using_iter<'a: 'b, 'b>(&'a mut self, mut ranges: impl Iterator<Item=impl Iterator<Item=Range<usize>> + 'b> + Clone + 'b, update: &impl Fn(&mut T), default: T) {
         let head = ranges.next();
         match (self, head) {
             (NestedIntervalTree::Node(maps), Some(head)) => {
@@ -46,7 +46,13 @@ impl<T: Clone> NestedIntervalTree<T> {
         self.insert_using_iter(ranges.iter().map(|x| x.iter().cloned()), &|_| (), value)
     }
     pub fn insert<'a: 'b, 'b>(&'a mut self, ranges: &[Range<usize>], value: T) {
-        self.insert_using_iter(ranges.iter().map(|x| iter::once(x.clone()).into_iter()), &|_| (), value)
+        self.insert_using_iter(ranges.iter().map(|x| iter::once(x.clone())), &|_| (), value)
+    }
+}
+
+impl<T> Default for NestedIntervalTree<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -56,11 +62,11 @@ impl<T> NestedIntervalTree<T> {
     }
     pub fn get(&self, ranges: &[Range<usize>]) -> Option<&T> {
         match self {
-            NestedIntervalTree::Node(maps) if ranges.len() > 0 => {
+            NestedIntervalTree::Node(maps) if !ranges.is_empty() => {
                 let (head, tail) = (&ranges[0], &ranges[1..]);
                 maps.get(head.clone()).and_then(|x| x.get(tail))
             }
-            NestedIntervalTree::Leaf(v) if ranges.len() == 0 => Some(v),
+            NestedIntervalTree::Leaf(v) if ranges.is_empty() => Some(v),
             _ => None,
         }
     }
@@ -101,16 +107,22 @@ impl<T> NestedIntervalTree<T> {
         self.subrange_using_iter(ranges.iter().map(|x| x.iter().cloned()))
     }
     pub fn superrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&'b T> + 'b> {
-        self.superrange_using_iter(ranges.into_iter().map(|x| std::iter::once(x)))
+        self.superrange_using_iter(ranges.into_iter().map(std::iter::once))
     }
     pub fn subrange<'a: 'b, 'b>(&'a self, ranges: Vec<Range<usize>>) -> Box<dyn Iterator<Item=&'b T> + 'b> {
-        self.subrange_using_iter(ranges.into_iter().map(|x| std::iter::once(x)))
+        self.subrange_using_iter(ranges.into_iter().map(std::iter::once))
     }
 }
 
 pub struct Encoder<K: std::hash::Hash, V> {
     values: Vec<(K, V)>,
     codes: HashMap<K, u32>
+}
+
+impl<K: std::hash::Hash + Clone + std::cmp::Eq, V> Default for Encoder<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<K: std::hash::Hash + Clone + std::cmp::Eq, V> Encoder<K, V> {
@@ -177,7 +189,7 @@ impl<'a, T> Iterator for PrefixIter<'a, T> {
         if let Some(key) = self.key {
             self.trie.get_ancestor(key).and_then(|x| {
                 x.key().map(|k| {
-                    if k.len() == 0 {
+                    if k.is_empty() {
                         self.key = None;    
                     } else {
                         self.key = Some(&k[0..k.len()-1]);

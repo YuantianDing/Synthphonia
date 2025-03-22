@@ -56,7 +56,7 @@ impl Data {
     
     #[inline(always)]
     pub fn update(&self, exec: &'static Executor, e: Expr, v: Value) -> Result<Option<&'static Expr>, ()> {
-        let new_ev = std::mem::replace(&mut *self.new_ev.borrow_mut(), Vec::new());
+        let new_ev = std::mem::take(&mut *self.new_ev.borrow_mut());
         for (e,v) in new_ev {
             self.all_eq.set_ref(v, e);
         }

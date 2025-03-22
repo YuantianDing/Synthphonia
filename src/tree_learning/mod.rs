@@ -56,7 +56,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
             root: bump.alloc(RefCell::new(SubProblem::Unsolved(bits::boxed_ones(size), 0.0))),
             subproblems: Vec::new(),
             conditions,
-            options: options,
+            options,
             bump,
             solved: false,
             limit
@@ -74,7 +74,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
         
         let mut vec: Vec<_> = self.options.iter().enumerate().map(|(i, b)| {
             let mut res = b.1.clone();
-            res.conjunction_assign(&*bits);
+            res.conjunction_assign(bits);
             (i, res.count_ones(), res)
         }).collect();
         vec.sort_by_key(|a| u32::MAX - a.1);
@@ -98,11 +98,11 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
     pub fn cond_entropy(&self, bits: &Bits, condition: &Bits) -> (f32, (Bits, f32), (Bits, f32)) {
         let total = bits.count_ones();
         let mut and_bits = bits.clone();
-        and_bits.conjunction_assign(&condition);
+        and_bits.conjunction_assign(condition);
         let and_entro = self.entropy(&and_bits);
         let and_count = and_bits.count_ones();
         let mut diff_bits = bits.clone();
-        diff_bits.difference_assign(&condition);
+        diff_bits.difference_assign(condition);
         let diff_entro = self.entropy(&diff_bits);
         let diff_count = diff_bits.count_ones();
         if and_count == 0 || diff_count == 0 {
@@ -141,7 +141,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
     pub fn run(&mut self) -> bool {
         let mut counter = 1;
         while let Some(last) = self.subproblems.pop() {
-            let sel = self.select(&*last.borrow());
+            let sel = self.select(&last.borrow());
             match sel {
                 SelectResult::Accept(i) => {
                     *last.borrow_mut() = SubProblem::Accept(i);

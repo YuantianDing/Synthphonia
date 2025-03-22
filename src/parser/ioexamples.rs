@@ -100,8 +100,7 @@ impl IOExamples {
                 }
 
                 if flag && constants.iter().filter(|c| c.contains(k)).all(|c| counter[k] > counter[c] + 1) {
-                    constants = constants .iter()
-                        .filter(|&c| !c.contains(k) || counter[k] + 1 < counter[c]).cloned().collect();
+                    constants.retain(|c| !c.contains(k) || counter[k] + 1 < counter[c]);
                     constants.push(k);
                 }
             }

@@ -54,7 +54,7 @@ impl ListDeducer {
             let handle = new_thread_with_limit(cfg, ctx);
             debg!("ListDeducer::map {:?} {:?} new thread {}", prob.value, list, handle.id());
             let inner = exec.bridge.wait(handle).await;
-            let mut result = exec.data[prob.nt].all_eq.get(list.into());
+            let mut result = exec.data[prob.nt].all_eq.get(list);
             Expr::Op1(Op1Enum::Map(ops::Map(Some(inner.alloc_local()))).galloc(), result).galloc()
         }))
     }

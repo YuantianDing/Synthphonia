@@ -55,9 +55,9 @@ macro_rules! impl_name {
 #[macro_export]
 macro_rules! impl_op1 {
     ($s:ident, $name:expr, $($t1:ident -> $rt:ident { $f:expr }),*) => {
-        impl crate::expr::ops::Op1 for $s {
+        impl $crate::expr::ops::Op1 for $s {
             fn cost(&self) -> usize { self.0 }
-            fn try_eval(&self, a1 : crate::value::Value) -> (bool, crate::value::Value) {
+            fn try_eval(&self, a1 : $crate::value::Value) -> (bool, $crate::value::Value) {
                 match a1 {
                     $(
                         crate::value::Value::$t1(s) => (true, crate::value::Value::$rt(s.iter().map($f).galloc_scollect())),
@@ -72,7 +72,7 @@ macro_rules! impl_op1 {
 macro_rules! new_op1 {
     ($s:ident, $name:expr, $($t1:ident -> $rt:ident { $f:expr }),*) => {
         $crate::impl_basic!($s, $name);
-        impl crate::forward::enumeration::Enumerator1 for $s {}
+        impl $crate::forward::enumeration::Enumerator1 for $s {}
         $crate::impl_op1!($s, $name, $($t1 -> $rt { $f }),*);
     };
 }
@@ -80,9 +80,9 @@ macro_rules! new_op1 {
 #[macro_export]
 macro_rules! impl_op1_opt {
     ($s:ident, $name:expr, $($t1:ident -> $rt:ident { $f:expr }),*) => {
-        impl crate::expr::ops::Op1 for $s {
+        impl $crate::expr::ops::Op1 for $s {
             fn cost(&self) -> usize { self.0 }
-            fn try_eval(&self, a1 : crate::value::Value) -> (bool, crate::value::Value) {
+            fn try_eval(&self, a1 : $crate::value::Value) -> (bool, $crate::value::Value) {
                 match a1 {
                     $(
                         crate::value::Value::$t1(s1) => {
@@ -100,8 +100,8 @@ macro_rules! impl_op1_opt {
 #[macro_export]
 macro_rules! new_op1_opt {
     ($s:ident, $name:expr, $($t1:ident -> $rt:ident { $f:expr }),*) => {
-        crate::impl_basic!($s, $name);
-        impl crate::forward::enumeration::Enumerator1 for $s {}
+        $crate::impl_basic!($s, $name);
+        impl $crate::forward::enumeration::Enumerator1 for $s {}
         $crate::impl_op1_opt!($s, $name, $($t1 -> $rt { $f }),*);
     };
 }
@@ -109,8 +109,8 @@ macro_rules! new_op1_opt {
 #[macro_export]
 macro_rules! new_op2 {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident) -> $rt:ident { $f:expr }),*) => {
-        crate::impl_basic!($s, $name);
-        impl crate::forward::enumeration::Enumerator2 for $s {}
+        $crate::impl_basic!($s, $name);
+        impl $crate::forward::enumeration::Enumerator2 for $s {}
         $crate::impl_op2!($s, $name, $(($t1, $t2) -> $rt { $f }),*);
     };
 }
@@ -118,8 +118,8 @@ macro_rules! new_op2 {
 #[macro_export]
 macro_rules! new_op2_opt {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident) -> $rt:ident { $f:expr }),*) => {
-        crate::impl_basic!($s, $name);
-        impl crate::forward::enumeration::Enumerator2 for $s {}
+        $crate::impl_basic!($s, $name);
+        impl $crate::forward::enumeration::Enumerator2 for $s {}
         $crate::impl_op2_opt!($s, $name, $(($t1, $t2) -> $rt { $f }),*);
     };
 }
@@ -127,8 +127,8 @@ macro_rules! new_op2_opt {
 #[macro_export]
 macro_rules! new_op3 {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident, $t3:ident) -> $rt:ident { $f:expr }),*) => {
-        crate::impl_basic!($s, $name);
-        impl crate::forward::enumeration::Enumerator3 for $s {}
+        $crate::impl_basic!($s, $name);
+        impl $crate::forward::enumeration::Enumerator3 for $s {}
         $crate::impl_op3!($s, $name, $(($t1, $t2, $t3) -> $rt { $f }),*);
     };
 }
@@ -136,8 +136,8 @@ macro_rules! new_op3 {
 #[macro_export]
 macro_rules! new_op3_opt {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident, $t3:ident) -> $rt:ident { $f:expr }),*) => {
-        crate::impl_basic!($s, $name);
-        impl crate::forward::enumeration::Enumerator3 for $s {}
+        $crate::impl_basic!($s, $name);
+        impl $crate::forward::enumeration::Enumerator3 for $s {}
         $crate::impl_op3_opt!($s, $name, $(($t1, $t2, $t3) -> $rt { $f }),*);
     };
 }
@@ -145,9 +145,9 @@ macro_rules! new_op3_opt {
 macro_rules! impl_op2 {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident) -> $rt:ident { $f:expr }),*) => {
 
-        impl crate::expr::ops::Op2 for $s {
+        impl $crate::expr::ops::Op2 for $s {
             fn cost(&self) -> usize { self.0 }
-            fn try_eval(&self, a1 : crate::value::Value, a2 : crate::value::Value) -> (bool, crate::value::Value) {
+            fn try_eval(&self, a1 : $crate::value::Value, a2 : $crate::value::Value) -> (bool, crate::value::Value) {
                 match (a1, a2) { 
                     $(
                         (crate::value::Value::$t1(s1), crate::value::Value::$t2(s2)) => (true, crate::value::Value::$rt(itertools::izip!(s1.iter(), s2.iter()).map($f).galloc_scollect())),
@@ -163,9 +163,9 @@ macro_rules! impl_op2 {
 macro_rules! impl_op2_opt {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident) -> $rt:ident { $f:expr }),*) => {
 
-        impl crate::expr::ops::Op2 for $s {
+        impl $crate::expr::ops::Op2 for $s {
             fn cost(&self) -> usize { self.0 }
-            fn try_eval(&self, a1 : crate::value::Value, a2 : crate::value::Value) -> (bool, crate::value::Value) {
+            fn try_eval(&self, a1 : $crate::value::Value, a2 : $crate::value::Value) -> (bool, crate::value::Value) {
                 match (a1, a2) {
                     $(
                         (crate::value::Value::$t1(s1), crate::value::Value::$t2(s2)) => {
@@ -185,9 +185,9 @@ macro_rules! impl_op2_opt {
 macro_rules! impl_op3 {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident, $t3:ident) -> $rt:ident { $f:expr }),*) => {
 
-        impl crate::expr::ops::Op3 for $s {
+        impl $crate::expr::ops::Op3 for $s {
             fn cost(&self) -> usize { self.0 }
-            fn try_eval(&self, a1 : crate::value::Value, a2 : crate::value::Value, a3 : crate::value::Value) -> (bool, crate::value::Value) {
+            fn try_eval(&self, a1 : $crate::value::Value, a2 : $crate::value::Value, a3 : crate::value::Value) -> (bool, crate::value::Value) {
                 match (a1, a2, a3) {
                     $(
                         (crate::value::Value::$t1(s1), crate::value::Value::$t2(s2), crate::value::Value::$t3(s3)) =>
@@ -204,9 +204,9 @@ macro_rules! impl_op3 {
 macro_rules! impl_op3_opt {
     ($s:ident, $name:expr, $(($t1:ident, $t2:ident, $t3:ident) -> $rt:ident { $f:expr }),*) => {
 
-        impl crate::expr::ops::Op3 for $s {
+        impl $crate::expr::ops::Op3 for $s {
             fn cost(&self) -> usize { self.0 }
-            fn try_eval(&self, a1 : crate::value::Value, a2 : crate::value::Value, a3 : crate::value::Value) -> (bool, crate::value::Value) {
+            fn try_eval(&self, a1 : $crate::value::Value, a2 : $crate::value::Value, a3 : crate::value::Value) -> (bool, crate::value::Value) {
                 match (a1, a2, a3) {
                     $(
                         (crate::value::Value::$t1(s1), crate::value::Value::$t2(s2), crate::value::Value::$t3(s3)) => {

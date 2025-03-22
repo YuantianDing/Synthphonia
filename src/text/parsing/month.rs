@@ -26,7 +26,7 @@ impl ParsingOp for ParseMonth {
         let months = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         let mut result: Vec<(&'static str, ConstValue)> = Vec::new();
         let month_literal = "(?<month>Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?)";
-        let regex5 = Regex::new(format!(r"{month_literal}").as_str()).unwrap();
+        let regex5 = Regex::new(month_literal.to_string().as_str()).unwrap();
         let iter = regex5.captures_iter(input);
         for m in iter {
             if m.name("month").is_some() {

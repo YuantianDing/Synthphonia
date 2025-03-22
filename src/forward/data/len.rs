@@ -22,8 +22,14 @@ pub struct Data{
 use ahash::AHashMap as HashMap;
 
 
+impl Default for Data {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Data {
-    pub fn new() -> Self { Data{ found: HashMap::new().into(), event: HashMap::new(), len_limit: 3 } }
+    pub fn new() -> Self { Data{ found: HashMap::new(), event: HashMap::new(), len_limit: 3 } }
     #[inline]
     pub fn update(&mut self, value: Value, exec: &'static Executor) {
         if exec.size() > self.len_limit { return; }

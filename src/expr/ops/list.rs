@@ -21,37 +21,37 @@ pub fn to_index(len: usize, i: i64) -> usize {
 
 new_op2_opt!(At, "list.at",
     (Str, Int) -> Str { |(s1, s2)| {
-        if s1.len() > 0 {
+        if !s1.is_empty() {
             let i = to_index(s1.len(), *s2);
-            Some(&*s1[i..=i].galloc_str())
+            Some(s1[i..=i].galloc_str())
         } else { None }
     }},
     (ListInt, Int) -> Int { |(s1, s2)| {
-        if s1.len() > 0 {
+        if !s1.is_empty() {
             let i = to_index(s1.len(), *s2);
             Some(s1[i])
         } else { None }
     }},
     (ListStr, Int) -> Str { |(s1, s2)| {
-        if s1.len() > 0 {
+        if !s1.is_empty() {
             let i = to_index(s1.len(), *s2);
             Some(s1[i])
         } else { None }
     }},
     (Str, Float) -> Str { |(s1, s2)| {
-        if s1.len() > 0 {
+        if !s1.is_empty() {
             let i = to_index(s1.len(), **s2 as i64);
-            Some(&*s1[i..=i].galloc_str())
+            Some(s1[i..=i].galloc_str())
         } else { None }
     }},
     (ListInt, Float) -> Int { |(s1, s2)| {
-        if s1.len() > 0 {
+        if !s1.is_empty() {
             let i = to_index(s1.len(), **s2 as i64);
             Some(s1[i])
         } else { None }
     }},
     (ListStr, Float) -> Str { |(s1, s2)| {
-        if s1.len() > 0 {
+        if !s1.is_empty() {
             let i = to_index(s1.len(), **s2 as i64);
             Some(s1[i])
         } else { None }
@@ -60,10 +60,10 @@ new_op2_opt!(At, "list.at",
 
 new_op2!(StrAt, "str.at",
     (Str, Int) -> Str { |(s1, s2)| {
-        if s1.len() > 0 {
+        if !s1.is_empty() {
             if *s2 >= 0 && (*s2 as usize) < s1.len() {
                 let i = *s2 as usize;
-                &*s1[i..=i].galloc_str()
+                s1[i..=i].galloc_str()
             } else { "" }
         } else { "" }
     }}

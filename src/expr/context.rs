@@ -27,7 +27,7 @@ impl Context {
         self.p.iter().cloned().chain(self.n.iter().cloned())
     }
     pub fn outputs(&self) -> impl Iterator<Item=Value> + '_ {
-        [self.output.clone()].into_iter()
+        [self.output].into_iter()
     }
     pub fn evaluate(&self, e: &'static Expr) -> Option<Bits> {
         let v = e.eval(self);

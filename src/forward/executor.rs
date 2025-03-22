@@ -24,12 +24,18 @@ pub struct TaskWaitingCost {
     cur_cost: usize,
 }
 
+impl Default for TaskWaitingCost {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskWaitingCost {
     pub fn new() -> Self {
         TaskWaitingCost { sender: broadcastque::channel(), cur_cost: 0  }
     }
     
-    pub async fn inc_cost(&mut self, problem: &mut Problem, amount: usize) -> () {
+    pub async fn inc_cost(&mut self, problem: &mut Problem, amount: usize) {
         let mut rv: broadcastque::Reciever<()> = self.sender.reciever();
         problem.used_cost += amount;
         let amount = problem.used_cost as isize - self.cur_cost as isize;
@@ -40,7 +46,7 @@ impl TaskWaitingCost {
         }
     }
     
-    pub fn release_cost_limit(&mut self, count: usize) -> () {
+    pub fn release_cost_limit(&mut self, count: usize) {
         self.sender.send((), count);
     }
 }
@@ -109,8 +115,8 @@ impl Executor {
     #[inline]
     pub async fn generate_condition(&'static self, problem: Problem, result: &'static Expr) -> &'static Expr {
         if problem.value.is_all_true() { return result; }
-        let left = pin!(self.solve_task(problem.clone()));
-        let right = pin!(self.solve_task(problem.clone().with_value(problem.value.bool_not())));
+        let left = pin!(self.solve_task(problem));
+        let right = pin!(self.solve_task(problem.with_value(problem.value.bool_not())));
         let cond = futures::future::select(left, right).await;
         match cond {
             futures::future::Either::Left((c, _)) => 
@@ -173,11 +179,11 @@ impl Executor {
         if self.top_task().is_ready() || (Instant::now() - self.start_time).as_millis() >= self.cfg.config.time_limit as u128 {
             return Err(());
         }
-        while STOP_SIGNAL.load(std::sync::atomic::Ordering::Relaxed) { /* Loop here forever */ }
+        while STOP_SIGNAL.load(std::sync::atomic::Ordering::Relaxed) { std::hint::spin_loop() }
         Ok(())
     }
     fn collect_condition(&'static self, e: &Expr) {
-        CONDITIONS.lock().as_mut().map(|x| x.insert(e));
+        if let Some(x) = CONDITIONS.lock().as_mut() { x.insert(e) }
     }
     fn run(&'static self) -> Result<(), ()> {
         let _ = self.extract_expr_collector();

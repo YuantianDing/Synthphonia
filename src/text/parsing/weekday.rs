@@ -29,7 +29,7 @@ impl ParsingOp for ParseWeekday {
         let months = [ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         let mut result: Vec<(&'static str, ConstValue)> = Vec::new();
         let weekday_literal = r"Sun(day)?|Mon(day)?|Tue(sday)?|Wed(nesday)?|Thu(r|rsday)?|Fri(day)?|Sat(urday)?";
-        let regex5 = Regex::new(format!(r"{weekday_literal}").as_str()).unwrap();
+        let regex5 = Regex::new(weekday_literal.to_string().as_str()).unwrap();
         let iter = regex5.captures_iter(input);
         for m in iter {
             let month = months.iter().enumerate().find(|(i, s)| ***s == m.get(0).unwrap().as_str()[0..3]).unwrap().0 as u32 + 1;

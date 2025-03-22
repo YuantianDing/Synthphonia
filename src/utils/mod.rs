@@ -100,7 +100,7 @@ macro_rules! rebinding {
 macro_rules! closure {
     ( $( $x:ident $v:ident ),*; $y:expr ) => {
         {
-            $(crate::rebinding!($x $v); )*
+            $($crate::rebinding!($x $v); )*
             { $y }
         }
     };
@@ -109,7 +109,7 @@ macro_rules! closure {
 macro_rules! async_closure {
     ( [$( $x:expr );*] $y:expr ) => {
         {
-            $(crate::rebinding!($x); )*
+            $($crate::rebinding!($x); )*
             async move { $y }
         }
     };

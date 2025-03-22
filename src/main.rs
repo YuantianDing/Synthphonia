@@ -179,7 +179,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             
             println!("{}", func);
 
-            if solutions.threads.len() != 0 {
+            if !solutions.threads.is_empty() {
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
             exit(0);
@@ -204,6 +204,6 @@ fn enrich_configuration(sygus_if: &str, mut cfg: Cfg) -> Cfg {
             }
         }
     }
-    return cfg1;
+    cfg1
 }
 

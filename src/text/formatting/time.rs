@@ -114,7 +114,7 @@ impl crate::expr::ops::Op1 for FormatTime {
     fn try_eval(&self,a1:Value) -> (bool, Value) {
         match a1 {
             Value::Int(s) => (true, Value::Str(s.iter().map(|&s1|{
-                let time = NaiveTime::from_num_seconds_from_midnight_opt(s1 as u32, 0).unwrap_or(NaiveTime::default());
+                let time = NaiveTime::from_num_seconds_from_midnight_opt(s1 as u32, 0).unwrap_or_default();
                 let mut h = time.hour();
                 let mut pm = false;
                 if self.pm.is_some() { 
@@ -150,7 +150,7 @@ impl FormattingOp for FormatTime {
             let s = caps.name("s").map(|a| a.as_str().parse::<u32>().unwrap()).unwrap_or(0);
             if let Some(a) = caps.name("pm") {
                 if h == 0 || h > 12 { return None; }
-                h = convert_hour(a.as_str().chars().next().unwrap() == 'p' || a.as_str().chars().next().unwrap() == 'P', h);
+                h = convert_hour(a.as_str().starts_with('p') || a.as_str().starts_with('P'), h);
             }
             if caps.name("m").is_some() || caps.name("s").is_some() || caps.name("pm").is_some() {
                 if let Some(a) = NaiveTime::from_hms_opt(h, m, s) {
@@ -182,9 +182,7 @@ impl FormattingOp for FormatTime {
 fn convert_hour(pm: bool, mut h: u32) -> u32 {
     if pm  {
         if h != 12 { h += 12; }
-    } else {
-        if h == 12 { h = 0; }
-    }
+    } else if h == 12 { h = 0; }
     h
 }
 fn hour_to_pm(h: u32) -> (u32, bool) {

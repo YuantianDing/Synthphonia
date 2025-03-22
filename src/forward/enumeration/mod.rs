@@ -21,7 +21,7 @@ pub trait Enumerator1 : Op1 {
 pub fn enumerate1(s: &impl Op1, this: &'static Op1Enum, exec: &'static Executor, opnt: [usize; 1]) -> Result<(), ()> {
     if exec.size() <= s.cost() { return Ok(()); }
     for (e, v) in exec.data[opnt[0]].size.get_all(exec.size() - s.cost()) {
-        let expr = Expr::Op1(this, *e);
+        let expr = Expr::Op1(this, e);
         if let (true, value) = s.try_eval(*v) {
             exec.enum_expr(expr, value)?;
         }
@@ -41,7 +41,7 @@ pub fn enumerate2(s: &impl Op2, this: &'static Op2Enum, exec: &'static Executor,
     let total = exec.size() - s.cost();
     for (i, (e1, v1)) in exec.data[nt[0]].size.get_all_under(total) {
         for (e2, v2) in exec.data[nt[1]].size.get_all(total - i) {
-            let expr = Expr::Op2(this, *e1, *e2);
+            let expr = Expr::Op2(this, e1, e2);
             if let (true, value) = s.try_eval(*v1, *v2) {
                 exec.enum_expr(expr, value)?;
             }
@@ -124,7 +124,7 @@ impl ProdRule {
             }
             ProdRule::Var(v) => {
                 if exec.size() == 1 {
-                    exec.enum_expr(Expr::Var(*v), exec.ctx.get(*v).unwrap().clone())?;
+                    exec.enum_expr(Expr::Var(*v), *exec.ctx.get(*v).unwrap())?;
                 }
                 Ok(())
             }

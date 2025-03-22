@@ -14,7 +14,7 @@ trait FormattingOp where Self: Sized {
             if let Some((op, x, y)) = self.format(i) {
                 if let Some(no) = newop {
                     newop = no.union(op);
-                    if newop.is_none() { return None; }
+                    newop.as_ref()?;
                 } else { newop = Some(op); }
                 a.push(x);
                 b.push(y);
@@ -25,9 +25,7 @@ trait FormattingOp where Self: Sized {
                 cond.push(false);
             }
         }
-        if let Some(no) = newop {
-            Some((no, consts_to_value(a), Value::Str(b.into_bump_slice()), cond.into_bump_slice().into()))
-        } else { None }
+        newop.map(|no| (no, consts_to_value(a), Value::Str(b.into_bump_slice()), cond.into_bump_slice().into()))
     }
 }
 
@@ -76,11 +74,11 @@ impl Op1Enum {
 #[macro_export]
 macro_rules! impl_formatop {
     ($opname:ident, $t:ident, $costf:expr) => {
-        impl crate::expr::ops::Op1 for $opname {
+        impl $crate::expr::ops::Op1 for $opname {
             fn cost(&self) -> usize {
                 $costf(self)
             }
-            fn try_eval(&self,a1:crate::value::Value) -> (bool, crate::value::Value) {
+            fn try_eval(&self,a1:$crate::value::Value) -> (bool, $crate::value::Value) {
                 match a1 {
                     Value::$t(s) => (true, Value::Str(s.iter().map(|s1| {
                         self.format_single(*s1).galloc_str()

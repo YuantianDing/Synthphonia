@@ -43,9 +43,9 @@ impl Data {
             assert!(v.len() == self.expected.len());
             let mut result = Vec::with_capacity(v.len());
             for (&e, &x) in self.expected.iter().zip(v.iter()) {
-                if x.len() == 0 {  result.push(vec![0..0]); continue; }
+                if x.is_empty() {  result.push(vec![0..0]); continue; }
                 let r = e.match_indices(x).map(|(i, _)| i..(i+x.len())).collect_vec();
-                if r.len() == 0 { return None; }
+                if r.is_empty() { return None; }
                 result.push(r)
             };
             Some(result)
@@ -56,7 +56,7 @@ impl Data {
             assert!(v.len() == self.expected.len());
             let mut result = Vec::with_capacity(v.len());
             for (&e, &x) in self.expected.iter().zip(v.iter()) {
-                if x.len() == 0 { result.push(0..0); continue; }
+                if x.is_empty() { result.push(0..0); continue; }
                 if let Some((i, _)) = e.match_indices(x).next() {
                     result.push(i..(i+x.len()))
                 } else { return None; }

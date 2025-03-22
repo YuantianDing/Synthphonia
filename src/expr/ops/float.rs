@@ -97,7 +97,7 @@ new_op1!(FloatToInt, "float.to.int",
 
 new_op1_opt!(StrToFloat, "str.to.float",
     Str -> Float { |&s1| {
-        s1.parse::<f64>().ok().map(|x| F64::new(x))
+        s1.parse::<f64>().ok().map(F64::new)
     }}
 );
 

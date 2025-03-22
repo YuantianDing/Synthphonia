@@ -40,7 +40,7 @@ impl crate::expr::ops::Op1 for ParseTime {
                 let a = s1
                     .iter()
                     .map(|s1| {
-                        if let Some((s,c)) =  self.parse_into(*s1).first() {
+                        if let Some((s,c)) =  self.parse_into(s1).first() {
                             c.as_i64().unwrap()
                         } else {
                             flag = false;
@@ -63,11 +63,9 @@ impl ParsingOp for ParseTime {
             let m = caps.name("m").map(|a| a.as_str().parse::<u32>().unwrap()).unwrap_or(0);
             let s = caps.name("s").map(|a| a.as_str().parse::<u32>().unwrap()).unwrap_or(0);
             if let Some(a) = caps.name("pm") {
-                if a.as_str().chars().next().unwrap() == 'p' || a.as_str().chars().next().unwrap() == 'P' {
+                if a.as_str().starts_with('p') || a.as_str().starts_with('P') {
                     if h != 12 { h += 12; }
-                } else {
-                    if h == 12 { h = 0; }
-                }
+                } else if h == 12 { h = 0; }
             }
             if caps.name("m").is_some() || caps.name("s").is_some() || caps.name("pm").is_some() {
                 if let Some(a) = NaiveTime::from_hms_opt(h, m, s) {
@@ -84,7 +82,7 @@ impl ParsingOp for ParseTime {
 
 pub fn detector(input: &'static str) -> bool {
     let scanner = ParseTime(1);
-    return scanner.parse_into(input).len() > 0;
+    !scanner.parse_into(input).is_empty()
 }
 
 #[cfg(test)]

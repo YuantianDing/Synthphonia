@@ -26,11 +26,11 @@ pub use replace::*;
 
 new_op3!(SubStr, "str.substr",
     (Str, Int, Int) -> Str { |(s1, s2, s3)| {
-        if s1.len() == 0 { return ""; }
+        if s1.is_empty() { return ""; }
         if *s2 >= 0 && (*s2 as usize) < s1.len() && *s3 >= 0 {
             let i = *s2 as usize;
             let j = std::cmp::min(i + *s3 as usize, s1.len());
-            &*s1[i..j].galloc_str()
+            s1[i..j].galloc_str()
         } else { "" }
     }}
 );
@@ -40,13 +40,13 @@ new_op2_opt!(Head, "str.head",
         if s1.len() <= 1 { return None; }
         let i = to_index(s1.len(), *s2);
         if i == 0 || i == s1.len() { return None; }
-        Some(&*s1[0..i].galloc_str())
+        Some(s1[0..i].galloc_str())
     }},
     (Str, Float) -> Str { |(s1, s2)| {
         if s1.len() <= 1 { return None; }
         let i = to_index(s1.len(), **s2 as i64);
         if i == 0 || i == s1.len() { return None; }
-        Some(&*s1[0..i].galloc_str())
+        Some(s1[0..i].galloc_str())
     }}
 );
 
@@ -55,13 +55,13 @@ new_op2_opt!(Tail, "str.tail",
         if s1.len() <= 1 { return None; }
         let i = to_index(s1.len(), *s2);
         if i == 0 || i == s1.len() { return None; }
-        Some(&*s1[i..].galloc_str())
+        Some(s1[i..].galloc_str())
     }},
     (Str, Float) -> Str { |(s1, s2)| {
         if s1.len() <= 1 { return None; }
         let i = to_index(s1.len(), **s2 as i64);
         if i == 0 || i == s1.len() { return None; }
-        Some(&*s1[i..].galloc_str())
+        Some(s1[i..].galloc_str())
     }}
 );
 
@@ -75,7 +75,7 @@ pub fn str_index_of_f(s1: &str, s2: &str, s3: usize) -> i64 {
     let mut result: usize = 0;
     for _ in 0..=s3 {
         if result >= s1.len() { return -1; }
-        if let Some(r) = s1[result as usize..].find(s2) {
+        if let Some(r) = s1[result..].find(s2) {
             result += r + 1;
         } else {return -1;}
     }

@@ -26,7 +26,7 @@ impl_op1_opt!(ParseFloat, "float.parse",
 impl ParsingOp for ParseFloat {
 
     fn parse_into(&self, input: &'static str) -> std::vec::Vec<(&'static str, ConstValue)> {
-        let regex = Regex::new(format!(r"(\-|\+)?[\d,]+(\.[\d,]+([eE](\-|\+)?\d+)?)?").as_str()).unwrap();
+        let regex = Regex::new(r"(\-|\+)?[\d,]+(\.[\d,]+([eE](\-|\+)?\d+)?)?".to_string().as_str()).unwrap();
         let iter = regex.captures_iter(input);
         let mut result = Vec::new();
         for m in iter {
@@ -41,8 +41,8 @@ impl ParsingOp for ParseFloat {
 }
 
 pub fn detector(input: &str) -> bool {
-    let regex = Regex::new(format!(r"(\-|\+)?[\d,]+(\.[\d,]+([eE](\-|\+)?\d+)?)").as_str()).unwrap();
-    return regex.is_match(input);
+    let regex = Regex::new(r"(\-|\+)?[\d,]+(\.[\d,]+([eE](\-|\+)?\d+)?)".to_string().as_str()).unwrap();
+    regex.is_match(input)
 }
 
 #[cfg(test)]

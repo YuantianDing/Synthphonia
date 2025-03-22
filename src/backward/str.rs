@@ -34,6 +34,12 @@ impl<T: Unpin> Future for HandleRcVec<T> {
     }
 }
 
+impl<T: Unpin> Default for HandleRcVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Unpin> HandleRcVec<T> {
     pub fn new() -> Self {
         Self(Arc::new(UnsafeCell::new(Vec::new())))
@@ -103,7 +109,7 @@ impl Deducer for StrDeducer {
             } 
             never!(&'static Expr)
         }});
-        let iter = self.formatter.iter().map(|x| self.fmt(prob.clone(), x, exec));
+        let iter = self.formatter.iter().map(|x| self.fmt(prob, x, exec));
 
         let substr_event = pin!(substr_event);
         let prefix_event = pin!(prefix_event);
@@ -156,7 +162,7 @@ impl StrDeducer {
     fn split1(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();
-        let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
+        let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if !y.is_empty() { x.contains(*y) } else { false }).count();
         // if !(contain_count >= self.split_once_count(exec) && prob.used_cost < 15) { return None; }
 
         
@@ -186,8 +192,8 @@ impl StrDeducer {
     #[inline]
     pub async fn generate_condition(&'static self, exec: &'static Executor, prob: Problem, result: &'static Expr) -> &'static Expr {
         if prob.value.is_all_true() { return result; }
-        let left = pin!(exec.solve_task(prob.clone()));
-        let right = pin!(exec.solve_task(prob.clone().with_value(prob.value.bool_not())));
+        let left = pin!(exec.solve_task(prob));
+        let right = pin!(exec.solve_task(prob.with_value(prob.value.bool_not())));
         let cond = futures::future::select(left, right).await;
         match cond {
             futures::future::Either::Left((c, _)) => 
@@ -252,7 +258,7 @@ impl StrDeducer {
         Some(task::spawn(async move {
             exec.waiting_tasks().inc_cost(&mut prob, 1).await;
             let v = prob.value.to_str();
-            let li = v.into_iter().map(|x| (0..x.len()).map(|i| &x[i..i+1]).galloc_scollect() ).galloc_scollect();
+            let li = v.iter().map(|x| (0..x.len()).map(|i| &x[i..i+1]).galloc_scollect() ).galloc_scollect();
             let list = exec.solve_task(prob.with_nt(self.join.1, li.into())).await;
             expr!(Join {list} "").galloc()
         }))
@@ -296,7 +302,7 @@ pub fn split_once(s: &'static [&'static str], delimiter: &'static [&'static str]
     let mut b = galloc::new_bvec(s.len());
     let mut cases = galloc::new_bvec(s.len());
     for (x, y) in s.iter().zip(delimiter.iter()) {
-        if y.len() == 0 {
+        if y.is_empty() {
             a.push("");
             b.push(*x);
             cases.push(true)

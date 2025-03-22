@@ -36,8 +36,8 @@ pub trait Op1: Clone + std::fmt::Display {
 
 impl Op1Enum {
     pub fn eval(&self, a1: Value) -> Value {
-        let a = self.try_eval(a1).1;
-        a
+        
+        self.try_eval(a1).1
     }
 }
 

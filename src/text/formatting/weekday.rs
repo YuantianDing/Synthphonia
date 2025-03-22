@@ -57,7 +57,7 @@ impl crate::expr::ops::Op1 for FormatWeekday {
         match a1 {
             crate::value::Value::Int(s1) => {
                 let a = s1.iter().map(|&s1| {
-                    if !(s1 >= 1 && s1 <= 7) { return ""; }
+                    if !(1..=7).contains(&s1) { return ""; }
                     let weekday_abbv = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                     let weekday_full = ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
                     

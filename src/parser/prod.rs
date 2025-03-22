@@ -18,7 +18,7 @@ pub enum ProdRule {
 
 impl ConstValue {
     pub fn parse(pair: Pair<'_, Rule>) -> Result<Self, Error> {
-        let [value]: [_; 1] = pair.into_inner().into_iter().collect_vec().try_into().unwrap();
+        let [value]: [_; 1] = pair.into_inner().collect_vec().try_into().unwrap();
         match value.as_rule() {
             Rule::numeral => {
                 if value.as_str().contains(".") {
@@ -49,7 +49,7 @@ impl ProdRule {
         }
     }
     pub fn parse(pair: Pair<'_, Rule>) -> Result<Self, Error> {
-        let mut vec = pair.into_inner().into_iter().collect_vec();
+        let mut vec = pair.into_inner().collect_vec();
         let mut config = Config::new();
         vec.try_retain(|x| {
             if x.as_rule() == Rule::config {

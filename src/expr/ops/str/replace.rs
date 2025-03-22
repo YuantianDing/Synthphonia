@@ -54,7 +54,7 @@ impl Op3 for Replace {
         match (a1, a2, a3) {
             (Value::Str(s1), Value::Str(s2), Value::Str(s3)) => (true, Value::Str(
                 itertools::izip!(s1.iter(), s2.iter(), s3.iter())
-                    .map(|(s1, s2, s3)| &*s1.replacen(*s2, s3, 1).galloc_str())
+                    .map(|(s1, s2, s3)| s1.replacen(*s2, s3, 1).galloc_str())
                     .galloc_scollect(),
             )),
             _ => (false, Value::Null),

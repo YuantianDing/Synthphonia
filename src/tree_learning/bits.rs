@@ -15,7 +15,7 @@ pub trait BoxSliceExt {
     
 }
 fn ceildiv(a: usize, b: usize) -> usize {
-    (a + b - 1) / b
+    a.div_ceil(b)
 }
 
 impl BoxSliceExt for Box<[u128]> {

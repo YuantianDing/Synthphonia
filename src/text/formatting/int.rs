@@ -60,7 +60,7 @@ fn conflict(a: usize, b: usize) -> Option<usize> {
 
 impl FormattingOp for FormatInt {
     fn format(&self, input: &'static str) -> Option<(Self, crate::value::ConstValue, &'static str)> {
-        let regex = Regex::new(format!(r"^ *(\-|\+)? *\d+").as_str()).unwrap();
+        let regex = Regex::new(r"^ *(\-|\+)? *\d+".to_string().as_str()).unwrap();
         if let Some(a) = regex.find(input) {
             let cv: ConstValue = a.as_str().parse::<i64>().ok()?.into();
             Some((FormatInt::get_format(a.as_str()), cv, &input[a.as_str().len()..]))

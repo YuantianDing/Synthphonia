@@ -25,9 +25,9 @@ impl crate::expr::ops::Op1 for ParseDate {
                 let a = s1
                     .iter()
                     .map(|s1| {
-                        let mut res = self.parse_into(*s1);
+                        let mut res = self.parse_into(s1);
                         res.sort_by_key(|(a,b)| -(a.len() as isize));
-                        res.first().map(|(s, c)| c.as_i64().unwrap()).unwrap_or(0 as i64)
+                        res.first().map(|(s, c)| c.as_i64().unwrap()).unwrap_or(0_i64)
                     }).galloc_scollect();
                 (true, a.into())
             }
@@ -46,7 +46,7 @@ lazy_static::lazy_static!{
         let regex2 = Regex::new(format!(r"{year}[ \-/.,]+{month}[\- /.,]*{day}?").as_str()).unwrap();
         let regex3 = Regex::new(format!(r"{day}[ \-/.,]*{month}[\- /.,]*{year}?").as_str()).unwrap();
         let regex4 = Regex::new(format!(r"{month}[\- /.,]+{year}?").as_str()).unwrap();
-        let regex5 = Regex::new(format!(r"{month_literal}").as_str()).unwrap();
+        let regex5 = Regex::new(month_literal.to_string().as_str()).unwrap();
         [regex1, regex2, regex3, regex4, regex5]
     };
 }
@@ -87,7 +87,7 @@ pub fn detector(input: &str) -> bool {
     let regex1 = Regex::new(format!(r"{month}[\-/.,]+{day}?[\-/.,]+{year}?").as_str()).unwrap();
     let regex2 = Regex::new(format!(r"{year}[\-/.,]+{month}[\-/.,]+{day}?").as_str()).unwrap();
     let regex3 = Regex::new(format!(r"{day}[\-/.,]+{month}[\-/.,]+{year}?").as_str()).unwrap();
-    return month_lit.is_match(input) || regex1.is_match(input) || regex2.is_match(input) || regex3.is_match(input);
+    month_lit.is_match(input) || regex1.is_match(input) || regex2.is_match(input) || regex3.is_match(input)
 }
 
 #[cfg(test)]

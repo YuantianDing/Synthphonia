@@ -22,40 +22,32 @@ use super::{Op1, Op3, Op2};
 new_op1_opt!(AsMonth, "date.month",
     Int -> Int { |s1| {
         let p = i32::try_from(*s1).ok();
-        if p.is_none() { return None; }
-        if let Some(date) = NaiveDate::from_num_days_from_ce_opt(p.unwrap()) {
-            Some(date.month() as i64)
-        } else { None }
+        p?;
+        NaiveDate::from_num_days_from_ce_opt(p.unwrap()).map(|date| date.month() as i64)
     }}
 );
 
 new_op1_opt!(AsDay, "date.day",
     Int -> Int { |s1| {
         let p = i32::try_from(*s1).ok();
-        if p.is_none() { return None; }
-        if let Some(date) = NaiveDate::from_num_days_from_ce_opt(p.unwrap()) {
-            Some(date.day() as i64)
-        } else { None }
+        p?;
+        NaiveDate::from_num_days_from_ce_opt(p.unwrap()).map(|date| date.day() as i64)
     }}
 );
 
 new_op1_opt!(AsYear, "date.year",
     Int -> Int { |s1| {
         let p = i32::try_from(*s1).ok();
-        if p.is_none() { return None; }
-        if let Some(date) = NaiveDate::from_num_days_from_ce_opt(p.unwrap()) {
-            Some(date.year() as i64)
-        } else { None }
+        p?;
+        NaiveDate::from_num_days_from_ce_opt(p.unwrap()).map(|date| date.year() as i64)
     }}
 );
 
 new_op1_opt!(AsWeekDay, "date.weekday",
     Int -> Int { |s1| {
         let p = i32::try_from(*s1).ok();
-        if p.is_none() { return None; }
-        if let Some(date) = NaiveDate::from_num_days_from_ce_opt(p.unwrap()) {
-            Some(date.weekday().number_from_sunday() as i64)
-        } else { None }
+        p?;
+        NaiveDate::from_num_days_from_ce_opt(p.unwrap()).map(|date| date.weekday().number_from_sunday() as i64)
     }}
 );
 

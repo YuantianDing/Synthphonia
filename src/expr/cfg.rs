@@ -77,7 +77,7 @@ impl NonTerminal {
                 }
             }
         }
-        return None;
+        None
     }
     pub fn get_op2(&self, op2: &str) -> Option<ProdRule>{
         for rule in self.rules.iter() {
@@ -87,7 +87,7 @@ impl NonTerminal {
                 }
             }
         }
-        return None;
+        None
     }
     pub fn get_op3(&self, op3: &str) -> Option<ProdRule>{
         for rule in self.rules.iter() {
@@ -97,7 +97,7 @@ impl NonTerminal {
                 }
             }
         }
-        return None;
+        None
     }
     
     pub fn get_all_formatter(&self) -> Vec<(Op1Enum, usize)> {
@@ -156,7 +156,7 @@ pub struct Cfg{
 impl std::fmt::Debug for Cfg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, nt) in self.inner.iter().enumerate() {
-            write!(f, "{}: {:?}\n", i, nt)?;
+            writeln!(f, "{}: {:?}", i, nt)?;
         }
         Ok(())
     }
@@ -193,7 +193,7 @@ mod tests {
         log::set_log_level(5);
         let s = fs::read_to_string("test/test.sl").unwrap();
         let problem = PBEProblem::parse(s.as_str()).unwrap();
-        let cfg = Cfg::from_synthfun(&problem.synthfun());
+        let cfg = Cfg::from_synthfun(problem.synthfun());
         println!("{:?}", cfg);
     }
 }

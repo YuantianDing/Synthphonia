@@ -78,7 +78,7 @@ crate::impl_formatop!(FormatFloat, Float, |this: &FormatFloat| this.cost);
 
 impl FormattingOp for FormatFloat {
     fn format(&self, input: &'static str) -> Option<(Self, crate::value::ConstValue, &'static str)> {
-        let regex = Regex::new(format!(r"^\-?\d+(\.\d*)?").as_str()).unwrap();
+        let regex = Regex::new(r"^\-?\d+(\.\d*)?".to_string().as_str()).unwrap();
         if let Some(a) = regex.find(input) {
             if a.as_str().ends_with(".") { return None; }
             if let Ok(r) = a.as_str().parse::<f64>() {

@@ -12,7 +12,7 @@ use super::{config::Config, ioexamples::IOExamples, problem::{new_custom_error_s
 
 impl Expr {
     pub fn parse(pair: Pair<'_, Rule>, sig: Option<&FunSig>) -> Result<&'static Expr, Error> {
-        let mut vec = pair.into_inner().into_iter().collect_vec();
+        let mut vec = pair.into_inner().collect_vec();
         let mut config = Config::new();
         vec.try_retain(|x| {
             if x.as_rule() == Rule::config {
@@ -25,7 +25,7 @@ impl Expr {
             match value.as_rule() {
                 Rule::value => Ok(Self::Const(ConstValue::parse(value)?).galloc()),
                 Rule::symbol => {
-                    let regex1 = Regex::new(format!(r"^<[0-9]>$").as_str()).unwrap();
+                    let regex1 = Regex::new(r"^<[0-9]>$".to_string().as_str()).unwrap();
                     if let Some(v) = sig.and_then(|x| x.index(value.as_str())) {
                         Ok(Self::Var(v as _).galloc())
                     } else if regex1.is_match(value.as_str()) {
@@ -89,7 +89,7 @@ pub struct CheckProblem {
 }
 
 impl CheckProblem {
-    pub fn parse<'i>(input: &'i str) -> Result<CheckProblem, Error> {
+    pub fn parse(input: &str) -> Result<CheckProblem, Error> {
         let [file]: [_; 1] = ProblemParser::parse(Rule::smtfile, input)?.collect_vec().try_into().unwrap();
         let [_, logic, definefun, examples, checksat]: [_; 5] = file.into_inner().collect_vec().try_into().unwrap();
         let [logic]: [_; 1] = logic.into_inner().collect_vec().try_into().unwrap();

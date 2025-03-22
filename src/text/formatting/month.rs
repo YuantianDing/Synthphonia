@@ -66,7 +66,7 @@ impl crate::expr::ops::Op1 for FormatMonth {
         match a1 {
             crate::value::Value::Int(s1) => {
                 let a = s1.iter().map(|&s1| {
-                    if !(s1 >= 1 && s1 <= 12) { return ""; }
+                    if !(1..=12).contains(&s1) { return ""; }
                     let months_abbv = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                     let months_full = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                     

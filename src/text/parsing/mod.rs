@@ -31,7 +31,7 @@ impl TextObjData {
             for rule in &ntdata.rules {
                 if let ProdRule::Op1(op1, from_nt) = rule {
                     let vec = op1.parse_all(&exec.ctx);
-                    if vec.len() == 0 { continue; }
+                    if vec.is_empty() { continue; }
                     let mut triebuilder = TrieBuilder::new();
                     for (k,v) in vec {
                         debg!("Found TextObj {} -> {} {}", k, op1.name(), v);
@@ -67,12 +67,12 @@ impl TextObjData {
     pub fn read_to(&self, input: &'static [&'static str]) -> impl Iterator<Item= (&'static Op1Enum, usize, Vec<ConstValue>)> + '_ {
         self.trie().iter().flat_map(|(scan, nt, trie)| {
             if trie.exact_match(input[0].as_bytes()) {
-                let mut value = vec![trie.get(input[0].as_bytes()).unwrap().clone()];
+                let mut value = vec![*trie.get(input[0].as_bytes()).unwrap()];
                 
                 let r = input[1..].iter().find_map(|inp| {
                     if trie.exact_match(inp.as_bytes()) {
                         let v = trie.get(inp.as_bytes()).unwrap();
-                        value.push(v.clone());
+                        value.push(*v);
                         None
                     } else { Some(()) }
                 });

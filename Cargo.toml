@@ -2,8 +2,13 @@
 name = "synthphonia-rs"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["YuantianDing <work.yt.ding@gmail.com>"]
+license = "MIT"
+description = "DryadSynth solver for string transformation programs"
+homepage = "https://github.com/YuantianDing/Synthphonia"
+repository = "https://github.com/YuantianDing/Synthphonia"
+readme = "README.md"
+keywords = ["program synthesis", "synthesis",  "programming", "purdue", "xiaokang", "qiu", "flashfill", "dryadsynth", "string", "synthphonia"]
 
 [dependencies]
 bumpalo = { version = "3.13.0", features = ["collections"] }

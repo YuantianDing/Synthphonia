@@ -1,6 +1,6 @@
 [package]
 name = "synthphonia-rs"
-version = "0.1.1"
+version = "0.1.0"
 edition = "2021"
 authors = ["YuantianDing <work.yt.ding@gmail.com>"]
 license = "MIT"
@@ -9,7 +9,7 @@ homepage = "https://github.com/YuantianDing/Synthphonia"
 repository = "https://github.com/YuantianDing/Synthphonia"
 readme = "README.md"
 keywords = ["synthesis",  "flashfill", "dryadsynth", "string", "program"]
-include = ["/src", "/Cargo.toml", "/rust-toolchain.toml", "/.cargo/config.toml"]
+
 
 [dependencies]
 bumpalo = { version = "3.13.0", features = ["collections"] }

@@ -81,7 +81,7 @@ artifact/
 
 `test.py` is a configuration and a script to run/export/view the primary results from the paper. To run all the test, simply run `./test.py run all`, the result will be generated under `result/` directory. This command can be interrupted at any time. It will continue working on the test based on files in `result/` directory. The full test need **one and a half days** to finish, for faster test, you may replace `result/` with `result_ref/` and delete only the benchmarks you want to rerun (e.g. only run flashfill++ and synthphonia two solvers). Refer to [Further configure test cases](#further-configure-test-cases) section for more customization.
 
-`test.py status` will provide the current status of `result` directory. 
+`test.py status` will provide the current status of `result` directory. You may use this command to check the current running progress of `./test.py run`.
 
 `test.py draw` will generate figures under `figures` directory, after all results are generated. It will give error if **not all results are generated**.
 

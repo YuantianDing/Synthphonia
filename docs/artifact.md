@@ -17,16 +17,21 @@ We provide a prebuilt Docker image for our artifact, available on [Dockerhub](ht
 
 If you prefer, you can build the docker image on your own machine using `artifact.zip`, which is also available on our [Release Page](https://github.com/YuantianDing/Synthphonia/releases). To do this, simply use the provided `Dockerfile`.
 
-You can also manually compile all solvers by following the instructions below. For a more detailed guide, check the `Dockerfile`.
-
 ### Building Individual Solvers
 
-- **Duet**: Install OPAM and the following packages: `z3.4.8.9`, `containers`, `containers-data`, `batteries`, `ocamlgraph`, and `sexplib`. Ensure compatibility with your OCaml compiler. **Note:** `python2` is required to build `z3.4.8.9`.
-- **Probe**: Install JVM, `sbt`, and `cvc4`, then build using: `sbt assembly`.
-- **FlashFill++**: Install [.NET 6.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) and run: `dotnet build`.
-- **Synthphonia**: Follow the setup guide in the [Synthphonia repository](https://github.com/YuantianDing/Synthphonia).
+You can also manually compile all solvers by following the instructions below. For detailed commands and dependencies, check the `Dockerfile`.
 
-To run the `test.py` script, you also need to install the required Python dependencies:
+- **CVC4** Download and install [CVC4-1.8](https://github.com/CVC4/CVC4-archived/releases/tag/1.8),
+- **Duet**: Install OPAM and the following packages: `z3.4.8.9`, `containers`, `containers-data`, `batteries`, `ocamlgraph`, and `sexplib`. Ensure compatibility with your OCaml compiler. **Note:** `python2` is required to build `z3.4.8.9`.
+- **Probe**: Install JVM, and make sure `sbt`, and `cvc4` in your `$PATH`, then build using: `sbt assembly`.
+- **FlashFill++**: Install [.NET 6.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) and run: `dotnet build`.
+- **Synthphonia**: Follow the setup guide in the [Synthphonia repository](https://github.com/YuantianDing/Synthphonia). Note to run `test.py` you will also need to symlink the generated binary `synthphonia` under `solvers/synthphonia` directory:
+
+    ```sh
+    cd solvers/synthphonia && ln -s target/release/synthphonia synthphonia
+    ```
+
+Additionally, to run the `test.py` script, you need to install the required Python dependencies:
 ```sh
 pip install -r text_utils/requirements.txt
 ```
@@ -74,7 +79,7 @@ artifact/
 
 ### Basic Usage
 
-`test.py` is a configuration and a script to run/export/view the primary results from the paper. To run all the test, simply run `./test.py run all`, the result will be generated under `result` directory. This command can be interrupted at any time. It will continue working on the test based on files in `result` directory.
+`test.py` is a configuration and a script to run/export/view the primary results from the paper. To run all the test, simply run `./test.py run all`, the result will be generated under `result` directory. This command can be interrupted at any time. It will continue working on the test based on files in `result` directory. The full test need one and a half days to finish, for faster test, you may replace `result` with `result_ref` and delete only the benchmarks you want to rerun (e.g. only run flashfill++ and synthphonia two solvers). Refer to [Further configure test cases](#further-configure-test-cases) section for more customization.
 
 `test.py status` will provide the current status of `result` directory. 
 

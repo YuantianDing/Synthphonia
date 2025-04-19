@@ -1,0 +1,9 @@
+[llm]
+provider = "openai"
+model = "o3-mini"
+
+[doc]
+source = ["src/backward/**/*.rs", "src/utils/**/*.rs", "src/value.rs"]
+item_types = [ "fn", "struct", "enum", "union", "trait", "macro", "static",]
+
+[llm.call_params]

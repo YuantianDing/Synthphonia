@@ -10,6 +10,7 @@ pub use bits::Bits;
 
 use crate::{debg, debg2, expr::Expr};
 
+/// An enum representing subproblems within a decision tree learning process for string synthesis. 
 pub enum SubProblem<'a> {
     Unsolved(Bits, f32),
     Accept(usize),
@@ -18,6 +19,7 @@ pub enum SubProblem<'a> {
 
 impl<'a> SubProblem<'a> {
     #[inline]
+    /// Adds subproblems for exploration in the decision tree. 
     pub fn add_subproblems(&self, subproblem: &mut Vec<(SubProb<'a>, bool)>) {
         if let SubProblem::Ite { expr, entropy, t, f } = self {
             subproblem.push((f, true));
@@ -28,6 +30,7 @@ impl<'a> SubProblem<'a> {
 
 pub type SubProb<'a> = &'a RefCell<SubProblem<'a>>;
 
+/// A struct encapsulating the state and parameters for a decision tree learning process in string synthesis. 
 pub struct TreeLearning<'a, 'b> {
     pub size: usize,
     root: SubProb<'a>,
@@ -39,6 +42,14 @@ pub struct TreeLearning<'a, 'b> {
     pub solved: bool,
 }
 
+/// An enum that captures the outcomes of decision-making processes for solving subproblems in decision trees. 
+/// 
+/// This enum comprises three variants: `Accept`, `Ite`, and `Failed`. 
+/// 
+/// 
+/// The `Accept` variant represents an outcome where a subproblem is successfully solved, containing a `usize` value typically indicating an index or identifier of the solution. 
+/// The `Ite` variant indicates a decision to use a conditional branch, often an 'if-then-else' construct, and includes a `usize` for identification, a `f32` for weight or probability, and two tuples of `(Bits, f32)` representing the branching conditions and associated probabilities. 
+/// The `Failed` variant signifies that a subproblem could not be resolved under the current conditions, indicating a failure in the decision-making process.
 pub enum SelectResult {
     Accept(usize),
     Ite(usize, f32, (Bits, f32), (Bits, f32)),
@@ -50,6 +61,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
     // pub fn split_infomation(bits: Bits) -> f32 {
 
     // }
+    /// Creates a new instance with specified parameters including size, conditions, options, memory allocator, and limit. 
     pub fn new_in(size: usize, conditions: &'b [(&'static Expr, Bits)], options: Vec<(&'static Expr, Bits)>, bump: &'a Bump, limit: usize) -> Self {
         let mut this = Self {
             size,
@@ -70,6 +82,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
     }
 
     #[inline]
+    /// Calculates the entropy of a given set of bits within the context of the `TreeLearning` algorithm's options. 
     pub fn entropy(&self, bits: & Bits) -> f32 {
         
         let mut vec: Vec<_> = self.options.iter().enumerate().map(|(i, b)| {
@@ -95,6 +108,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
         res
     }
     
+    /// Calculates the conditional entropy of a given set of bits based on a specified condition bitset. 
     pub fn cond_entropy(&self, bits: &Bits, condition: &Bits) -> (f32, (Bits, f32), (Bits, f32)) {
         let total = bits.count_ones();
         let mut and_bits = bits.clone();
@@ -116,6 +130,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
     }
     
     #[inline]
+    /// Determines the next action for an unsolved subproblem in the tree learning process. 
     pub fn select(&self, unsolved: &SubProblem<'a>) -> SelectResult {
         if let SubProblem::Unsolved(bits, entro) = unsolved {
             if *entro <= 0.0001 {
@@ -138,6 +153,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
         } else { panic!("last should be unsolved.") }
     }
 
+    /// Executes the learning algorithm by iterating over the subproblems within the decision tree. 
     pub fn run(&mut self) -> bool {
         let mut counter = 1;
         while let Some(last) = self.subproblems.pop() {
@@ -169,6 +185,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
         true
     }
 
+    /// Facilitates the recursive formatting of the decision tree contained within the `TreeLearning` structure for display purposes. 
     fn fmt_recursive(&self, f: &mut std::fmt::Formatter<'_>, node: SubProb<'a>, indent: &mut String) -> std::fmt::Result {
         match &*node.borrow() {
             SubProblem::Unsolved(bits, entropy) => 
@@ -185,6 +202,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
             }
         }
     }
+    /// Determines the size of the decision tree by recursively traversing through its nodes. 
     fn size_recursive(&self, node: SubProb<'a>) -> usize {
         match &*node.borrow() {
             SubProblem::Unsolved(bits, entropy) => 1,
@@ -192,6 +210,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
             SubProblem::Ite { expr, entropy, t: tb, f: fb } => 1 + self.size_recursive(tb) + self.size_recursive(fb),
         }
     }
+    /// Covers a decision tree recursively starting from a given node and determining the set of bits covered by the tree structure. 
     fn cover_recursive(&self, node: SubProb<'a>) -> Bits {
         match &*node.borrow() {
             SubProblem::Unsolved(bits, entropy) => bits.clone(),
@@ -207,6 +226,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
             }
         }
     }
+    /// Returns the expression representation of a given node in the decision tree. 
     fn expr_recursizve(&self, node: SubProb<'a>) -> &'static Expr {
         match &*node.borrow() {
             SubProblem::Unsolved(bits, entropy) => panic!("Still subproblem remain."),
@@ -219,6 +239,7 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
             }
         }
     }
+    /// Recursively traverses through a decision tree to collect bits from unsolved subproblems. 
     fn unsolved_recursive(&self, node: SubProb<'a>, result: &mut Vec<Box<[u128]>>) {
         match &*node.borrow() {
             SubProblem::Unsolved(bits, entropy) => {
@@ -231,21 +252,27 @@ impl<'a, 'b> TreeLearning<'a, 'b> {
             }
         }
     }
+    /// Returns a vector of boxed slices containing `u128` values that represent unsolved components of a decision tree. 
     fn unsolved(&self) -> Vec<Box<[u128]>> {
         let mut result = Vec::new();
         self.unsolved_recursive(self.root, &mut result);
         result
     }
+    /// Returns the expression associated with the root of the decision tree. 
+    /// This function utilizes a recursive approach by invoking `expr_recursizve` on the tree's root node to retrieve the expression efficiently, leveraging the recursive structure to navigate through potentially complex tree configurations within the `TreeLearning` context.
     pub fn expr(&self) -> &'static Expr {
         self.expr_recursizve(self.root)
     }
     
+    /// Calculates the result size of a decision tree by recursively determining the size starting from the root node. 
+    /// This implementation utilizes the `size_recursive` function on the `root` to compute the cumulative size of the tree structure, which includes all subproblems, branches, and accepted solutions present in the tree.
     pub fn result_size(&self) -> usize {
         self.size_recursive(self.root)
     }
 }
 
 impl<'a, 'b> std::fmt::Debug for TreeLearning<'a, 'b> {
+    /// Formats the decision tree within the `TreeLearning` instance for display. 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.fmt_recursive(f, self.root, &mut "".into())
     }

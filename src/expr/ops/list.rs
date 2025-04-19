@@ -11,6 +11,12 @@ use itertools::izip;
 
 use super::{Op1, Op3, Op2};
 
+/// Converts an integer to a valid index within a bounded length. 
+/// 
+/// For non-negative input `i`, it returns the minimum of `i` or `len - 1`, ensuring the result does not exceed the upper bound of the available length. 
+/// For negative `i`, it computes an index by subtracting the negated value of `i` from the total length using saturating operations to avoid overflow, effectively wrapping around from the end of the array-like sequence. 
+/// This function handles out-of-bounds indices gracefully, ensuring the resulting index always falls within the valid range of 0 to `len - 1`.
+/// 
 pub fn to_index(len: usize, i: i64) -> usize {
     if i >= 0 {
         min(i as usize, len - 1)

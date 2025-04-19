@@ -12,6 +12,7 @@ pub type EV = (&'static Expr, Value);
 pub type VecEv = Vec<EV>;
 type SizeVec = Vec<VecEv>;
 
+/// Term Dispatcher for a specific size of expression
 pub struct Data(UnsafeCell<SizeVec>);
 
 impl std::fmt::Debug for Data {

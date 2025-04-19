@@ -11,6 +11,7 @@ use ext_trait::extension;
 use super::executor::Executor;
 
 
+/// An enumerator for a specific production rule.
 pub trait Enumerator1 : Op1 {
     #[inline(always)]
     fn enumerate(&self, this: &'static Op1Enum, exec: &'static Executor, opnt: [usize; 1]) -> Result<(), ()> {
@@ -18,6 +19,7 @@ pub trait Enumerator1 : Op1 {
     }
 }
 #[inline(always)]
+
 pub fn enumerate1(s: &impl Op1, this: &'static Op1Enum, exec: &'static Executor, opnt: [usize; 1]) -> Result<(), ()> {
     if exec.size() <= s.cost() { return Ok(()); }
     for (e, v) in exec.data[opnt[0]].size.get_all(exec.size() - s.cost()) {
@@ -29,6 +31,7 @@ pub fn enumerate1(s: &impl Op1, this: &'static Op1Enum, exec: &'static Executor,
     Ok(())
 }
 
+/// An enumerator for a specific production rule.
 pub trait Enumerator2 : Op2 {
     #[inline(always)]
     fn enumerate(&self, this: &'static Op2Enum, exec: &'static Executor, nt: [usize; 2]) -> Result<(), ()> {
@@ -50,6 +53,7 @@ pub fn enumerate2(s: &impl Op2, this: &'static Op2Enum, exec: &'static Executor,
     Ok(())
 }
 
+/// An enumerator for a specific production rule.
 pub trait Enumerator3 : Op3 {
     #[inline(always)]
     fn enumerate(&self, this: &'static Op3Enum, exec: &'static Executor, nt: [usize; 3]) -> Result<(), ()> {
@@ -112,8 +116,9 @@ impl Enumerator3 for Op3Enum {
     }
 }
 
-#[extension(pub trait ProdRuleEnumerate)]
+#[extension(pub trait ProdRuleEnumerateExt)]
 impl ProdRule {
+    /// Extend production rule with the ability to enumerate.
     fn enumerate(&self, exec: &'static Executor) -> Result<(), ()> {
         match self {
             ProdRule::Const(c) => {

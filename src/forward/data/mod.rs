@@ -10,14 +10,24 @@ use self::size::{VecEv, EV};
 
 use super::executor::Executor;
 
-
+/// Term Dispatcher for SubString
 pub mod substr;
+
+/// Term Dispatcher for Equal
 pub mod all_eq;
+
+/// Term Dispatcher for Size
 pub mod size;
+
+/// Term Dispatcher for Prefix
 pub mod prefix;
-// pub mod contains;
+
+/// Term Dispatcher for Contains
+pub mod contains;
+/// Term Dispatcher for Len
 pub mod len;
 
+/// All Term Dispatchers
 pub struct Data {
     pub size: size::Data,
     pub all_eq: all_eq::Data,
@@ -30,6 +40,7 @@ pub struct Data {
 } 
 
 impl Data {
+    /// Create a instance of all term dispatchers
     pub fn new(cfg: & Cfg, ctx: & Context) -> Vec<Self> {
         cfg.iter().enumerate().map(|(i, nt)| {
             Self {
@@ -44,17 +55,21 @@ impl Data {
             }
         }).collect_vec()
     }
+    /// Get substr dispatcher
     pub fn substr(&self) -> Option<&mut substr::Data> {
         self.substr.as_ref().map(|a| unsafe { a.as_mut() } )
     }
+    /// Get prefix dispatcher
     pub fn prefix(&self) -> Option<&mut prefix::Data> {
         self.prefix.as_ref().map(|a| unsafe { a.as_mut() } )
     }
+    /// Get len dispatcher
     pub fn len(&self) -> Option<&mut len::Data> {
         self.len.as_ref().map(|a| unsafe { a.as_mut() } )
     }
     
     #[inline(always)]
+    /// Add an new expression and value pair into the term dispatcher
     pub fn update(&self, exec: &'static Executor, e: Expr, v: Value) -> Result<Option<&'static Expr>, ()> {
         let new_ev = std::mem::take(&mut *self.new_ev.borrow_mut());
         for (e,v) in new_ev {

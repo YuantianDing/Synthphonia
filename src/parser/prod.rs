@@ -8,6 +8,15 @@ use crate::{
 use super::{problem::{new_custom_error_span, Error, Rule}, config::Config};
 
 #[derive(PartialEq, Eq, Hash, Clone)]
+/// A variant-rich enumeration representing different types of production rules used in string synthesis. 
+/// 
+/// It includes variants for handling variables, constants, and operations with differing arities. 
+/// Each variant encapsulates a production rule as follows:
+/// 
+/// The `Var` variant takes a variable name and a configuration, associating this rule with a specific variable in the synthesis problem. 
+/// The `Const` variant holds a constant value alongside its configuration, representing fixed values in the synthesis. 
+/// Variants `Op1`, `Op2`, and `Op3` capture operations with one, two, and three operands respectively, each carrying the necessary operands as strings and concluding with a configuration object to manage operational parameters or constraints. 
+/// This structure enables flexible representation of grammatical constructs in syntax-guided synthesis tasks, supporting a wide range of synthesis requirements.
 pub enum ProdRule {
     Var(String, Config),
     Const(ConstValue, Config),
@@ -17,6 +26,8 @@ pub enum ProdRule {
 }
 
 impl ConstValue {
+    /// Parses a `Pair` of `'_, Rule>` into a `ConstValue`, returning a result with either the parsed constant or an error. 
+
     pub fn parse(pair: Pair<'_, Rule>) -> Result<Self, Error> {
         let [value]: [_; 1] = pair.into_inner().collect_vec().try_into().unwrap();
         match value.as_rule() {
@@ -42,12 +53,16 @@ impl ConstValue {
 }
 
 impl ProdRule {
+    /// Returns the constant value associated with a specific production rule, if available. 
+
     pub fn const_value(&self) -> Option<&ConstValue> {
         match self {
             ProdRule::Const(i, _) => Some(i),
             _ => None,
         }
     }
+    /// Parses a `Pair` object into a `ProdRule` variant. 
+
     pub fn parse(pair: Pair<'_, Rule>) -> Result<Self, Error> {
         let mut vec = pair.into_inner().collect_vec();
         let mut config = Config::new();
@@ -76,6 +91,7 @@ impl ProdRule {
 }
 
 impl std::fmt::Debug for ProdRule {
+
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Var(arg0, _) => write!(f, "{}", arg0),

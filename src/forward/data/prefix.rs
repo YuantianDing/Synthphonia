@@ -17,6 +17,7 @@ pub type Indices = Vec<usize>;
 
 use ahash::AHashMap as HashMap;
 
+/// Prefix Term Dispatcher using Radix Trees
 pub struct Data {
     expected: &'static [&'static str],
     found: RadixTrieN,

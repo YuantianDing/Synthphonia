@@ -12,7 +12,7 @@ use crate::{
     debg, expr::Expr, forward::executor::Executor, galloc::AllocForAny, info, log, utils::UnsafeCellExt, value::Value
 };
 
-
+/// Term Dispatcher for length
 pub struct Data{
     found: HashMap<Vec<usize>, Vec<Value>>,
     event: HashMap<Vec<usize>, broadcast::Sender<Value>>,

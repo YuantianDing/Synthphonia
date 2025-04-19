@@ -71,6 +71,12 @@ new_op1!(ToInt, "str.to.int",
     }}
 );
 
+/// Finds the zero-based index of the nth occurrence of a substring `s2` within the string `s1`, starting the search at position `s3`. 
+/// 
+/// The function iteratively searches for the substring `s2` in `s1`, updating the starting position with each found occurrence while ensuring that it does not exceed the length of `s1`. 
+/// If the search exceeds the bounds of `s1` or if `s2` is not found, the function returns `-1`. 
+/// Otherwise, it returns the index of the nth occurrence of `s2`, offset by `1` due to incrementing `result`.
+/// 
 pub fn str_index_of_f(s1: &str, s2: &str, s3: usize) -> i64 {
     let mut result: usize = 0;
     for _ in 0..=s3 {
@@ -82,6 +88,14 @@ pub fn str_index_of_f(s1: &str, s2: &str, s3: usize) -> i64 {
     result as i64 - 1
 }
 
+/// Returns the index of the last occurrence of one string within a substring of another string. 
+/// 
+/// The function searches for the string `s2` within a substring of `s1` that extends from the start to an index initially set to the length of `s1`. 
+/// It performs this search `s3` times. 
+/// During each iteration, if the target string `s2` is found, the index of its last occurrence is updated as the new search boundary for the next iteration. 
+/// If `s2` is not found during any iteration, or if the search reaches the beginning of `s1`, the function returns `-1`. 
+/// The function ultimately returns the index as an `i64` type.
+/// 
 pub fn str_index_of_b(s1: &str, s2: &str, s3: usize) -> i64 {
     let mut result: usize = s1.len();
     for _ in 0..s3 {

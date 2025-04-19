@@ -1,12 +1,18 @@
 use std::{collections::HashMap, cell::UnsafeCell};
 
 use itertools::Itertools;
-use simple_rc_async::sync::broadcast;
+use simple_rc_async::sync::broadcast::{self, Sender};
 
 use crate::{value::Value, utils::UnsafeCellExt};
 
 
 pub type ListStr = &'static [&'static str];
+/// Determines whether all elements of the first sequence appear in order within the second sequence. 
+/// 
+/// The function iterates over the second sequence while maintaining an iterator over the first sequence. 
+/// For each element encountered in the second sequence, if it matches the next expected element from the first sequence, the iterator advances. 
+/// The process terminates early and returns true if all elements of the first sequence have been matched; otherwise, it returns false.
+/// 
 pub fn listsubseq(that: ListStr, this: ListStr) -> bool {
     let mut iter = that.iter().peekable();
     for item in this {
@@ -18,45 +24,31 @@ pub fn listsubseq(that: ListStr, this: ListStr) -> bool {
     }
     return iter.peek() == None;
 }
-pub struct Data {
+pub(crate) struct ListData {
     table: HashMap<String, Vec<(ListStr, broadcast::Sender<Value>)>>
 }
 
 impl ListData {
-    pub fn new() -> Self { ListData { table: HashMap::new() } }
+    /// Creates and returns a new instance containing an empty hash table. 
+    /// This function initializes an internal state with a hash map that can later be employed to store associations of string lists and related broadcast sender values for synthesis term dispatching.
+    pub(crate) fn new() -> Self { ListData { table: HashMap::new() } }
     #[inline]
-    pub fn update(&mut self, v: ListStr, value: Value) -> Result<(), ()> {
-        for (i, s) in v.iter().enumerate() {
-            if let Some(vec) = self.table.get(*s) {
-                for (ls,chan) in vec {
-                    if listsubseq(ls, &v[i..]) {
-                        chan.get().send(value)?;
-                    }
-                }
-            }
-        }
-        Ok(())
+    /// Updates term dispatch channels by evaluating each element in the provided list and propagating associated values where applicable.
+    pub(crate) fn update(&mut self, v: ListStr, value: Value) -> Result<(), ()> {
+        todo!()
     }
-    pub fn listen_at(&mut self, l: ListStr, chan: Channel<Value>) {
-        if let Some(v) = self.table.get_mut(*l.first().unwrap()) {
-            v.push((l, chan));
-        } else {
-            self.table.insert(l.first().unwrap().to_string(), vec![(l, chan)]);
-        }
+    /// Adds a new tuple consisting of a list-based key and its associated communication channel to a managed table. 
+    pub(crate) fn listen_at(&mut self, l: ListStr, chan: Sender<Value>) {
+        todo!()
     }
 }
-
+/// Term dispatcher for contains
 pub struct Data(UnsafeCell<Vec<(usize, ListData)>>);
 
 impl Data {
+
     pub fn new(output: Value, indices: &[usize]) -> Self {
-        if indices.len() > 0 {
-            let output: &'static [&'static str] = output.try_into().unwrap();
-            let a = indices.iter().flat_map(|i| if i >= &output.len() { None } else { Some((*i, ListData::new()))}).collect_vec();
-            Data(a.into())
-        } else {
-            Data(Vec::new().into())
-        }
+        todo!();
     }
     pub fn len(&self) -> usize { self.get().len() }
     fn get(&self) -> &mut [(usize, ListData)] {
@@ -69,16 +61,6 @@ impl Data {
             }
         }
         Ok(())
-    }
-    pub fn listen_at(&self, v: Value) -> Channel<Value> {
-        let v: &'static [ListStr] = v.try_into().unwrap();
-        let chan = Channel::new();
-        for (i, data) in self.get().iter_mut() {
-            if v[*i].len() > 0 {
-                data.listen_at(v[*i], chan);
-            }
-        }
-        chan
     }
 }
 

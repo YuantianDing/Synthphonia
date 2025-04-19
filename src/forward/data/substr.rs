@@ -13,6 +13,7 @@ use crate::{closure, expr::Expr, forward::executor::Executor, never, utils::{nes
 use super::size::EV;
 use ahash::AHashMap as HashMap;
 
+/// Term Dispatcher for substrings
 pub struct Data {
     expected: &'static [&'static str],
     found: IntervalTreeN,

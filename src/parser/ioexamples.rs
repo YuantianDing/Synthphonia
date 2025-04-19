@@ -25,12 +25,24 @@ use crate::value::Value;
 use derive_more::DebugCustom;
 #[derive(DebugCustom, Clone)]
 #[debug(fmt = "{:?} -> {:?}", inputs, output)]
+/// A struct that holds input and output examples for string synthesis problems. 
+/// 
+/// The structure consists of two fields: `inputs`, which is a vector containing multiple `Value` elements, and `output`, a single `Value` representing the expected result. 
+/// This setup is designed to facilitate the storage and retrieval of example data necessary for evaluating and validating synthesis algorithms, by providing concrete cases of input-output relationships.
+/// 
 pub struct IOExamples {
     pub(crate) inputs: Vec<Value>,
     pub(crate) output: Value,
 }
 
 impl IOExamples {
+    /// Parses a collection of input/output examples according to a specified function signature and optional deduplication flag, returning a structured set of examples or an error. 
+    /// 
+    /// It begins by extracting relevant metadata from the provided function signature, such as function name, argument types, and return type. 
+    /// The function processes the provided examples by iterating over them, ensuring each example contains a correct number of arguments and matching types. 
+    /// If the 'dedup' parameter is set to true, duplicates are removed using a `HashSet`. 
+    /// Finally, the function constructs the `inputs` and `output`, organizing each example's inputs by type before returning the assembled `IOExamples` structure.
+    /// 
     pub(crate) fn parse(examples: Pair<'_, Rule>, sig: &FunSig, dedup: bool) -> Result<Self, Error> {
         let name = sig.name.as_str();
         let args = sig.args.as_slice();
@@ -64,6 +76,13 @@ impl IOExamples {
         Ok(Self { inputs, output })
     }
     
+    /// Extracts and returns a list of constant substrings identified in the input and output examples of string synthesis problems.
+    /// 
+    /// The method iterates over all input strings and the output string, treating them as a unified sequence. 
+    /// For each string, it generates all possible substrings using `all_slices` and counts their occurrences. 
+    /// It then evaluates each distinct substring, checking for specific filtering conditions: the substring must appear with sufficient frequency, must either be a significant length or show certain frequency patterns, and should not be simple numeric or alphanumeric characters. 
+    /// Substrings meeting these criteria that are not already surpassed in count by longer substrings are added to the list of constants. 
+    /// This approach helps in identifying significant repeating string patterns, which can play a crucial role in constructing string transformation rules.
     pub fn extract_constants(&self) -> Vec<&'static str> {
         let mut counter = Counter::<&str, usize>::new();
         let mut total_len = 0;
@@ -110,6 +129,13 @@ impl IOExamples {
     }
 }
 
+/// Generates an iterator over all possible slices of the input string. 
+/// 
+/// 
+/// This function takes a string slice as input and creates an iterator that yields each possible substring of the input string. 
+/// It uses a range from 0 to the length of the string to initiate the starting index of each slice. 
+/// For each starting index, it employs `flat_map` combined with `char_indices` and `skip` to navigate through the string, creating substrings from each starting index to each subsequent character index. 
+/// The resulting iterator efficiently covers all contiguous substrings in the original string, ensuring comprehensive slice generation without allocating additional string storage.
 fn all_slices(a: &str) -> impl Iterator<Item = &str> {
     (0..a.len()).flat_map(move |i| a.char_indices().skip(i).map(move |(j, _)| &a[i..j + 1]))
 }

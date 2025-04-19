@@ -17,21 +17,26 @@ use crate::{
 use ahash::AHashMap as HashMap;
 
 #[derive(From, Deref)]
+/// A Term Dispatcher for Equal
 pub struct Data(UnsafeCell<HashMap<Value, MaybeReady<&'static Expr>>>);
 
 impl Default for Data {
+    /// Creates a new instance using the default initialization, which internally delegates to the new method.
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl Data {
+    /// Creates and returns a new instance of the data structure by initializing it with an empty hash map. 
     pub fn new() -> Self { Self(HashMap::new().into()) }
 
     #[inline(always)]
+    /// Return the number of entries stored in the underlying container. 
     pub fn count(&self) -> usize { unsafe{self.as_mut().len()} }
 
     #[inline(always)]
+    /// Updates the mapping by setting an associated expression for a given value and returns the updated expression when modifications are made.
     pub fn set(&self, v: Value, e: Expr) -> Option<&'static Expr> {
         match unsafe{ self.as_mut().entry(v) } {
             hash_map::Entry::Occupied(mut p) => {
@@ -52,6 +57,7 @@ impl Data {
     }
 
     #[inline(always)]
+    /// Sets the internal mapping for a given key with a new static expression value, and if necessary, triggers a notification to propagate the update. 
     pub fn set_ref(&self, v: Value, e: &'static Expr) {
         let mut sd = None;
         match unsafe{ self.as_mut().entry(v) } {
@@ -66,6 +72,7 @@ impl Data {
     }
 
     #[inline(always)]
+    /// Acquires asynchronously an expression for a given value, waiting for its readiness if necessary.
     pub async fn acquire(&self, v: Value) -> &'static Expr {
         match unsafe{ self.as_mut().entry(v) } {
             hash_map::Entry::Occupied(o) => o.get().get().await,
@@ -74,6 +81,7 @@ impl Data {
     }
 
     #[inline(always)]
+    /// Checks whether the synthesis term associated with the provided value is still pending. 
     pub fn is_pending(&self, v: Value) -> bool {
         if let Some(a) = unsafe{ self.as_mut().get(&v) } {
             !a.is_ready()
@@ -83,6 +91,7 @@ impl Data {
     }
 
     #[inline(always)]
+    /// Checks whether the underlying data structure contains the specified key. 
     pub fn contains(&self, v: Value) -> bool {
         match unsafe{ self.as_mut().entry(v) } {
             hash_map::Entry::Occupied(o) => true,
@@ -105,11 +114,13 @@ impl Data {
     //         }
     //     }
     // }
+    /// Retrieves an expression reference from the underlying data structure based on a given index. 
     pub fn at(&self, index: Value) -> Option<&'static Expr> {
         unsafe{ &self.as_mut().get(&index) }.and_then(|x| {
             x.poll_opt()
         })
     }
+    /// Retrieves a static expression reference corresponding to the provided value by performing an internal lookup. 
     pub fn get(&self, index: Value) -> &'static Expr {
         self.at(index).expect("No such entry")
     }

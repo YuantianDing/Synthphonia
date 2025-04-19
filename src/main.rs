@@ -7,16 +7,41 @@
 #![feature(cell_update)]
 #![feature(trait_alias)]
 
+/// Global allocation 
 pub mod galloc;
+
+/// Logging
 pub mod log;
+
+/// Utility functions
 pub mod utils;
+
+/// SyGuS-IF parsing
 pub mod parser;
+
+/// Representing Value
 pub mod value;
+
+/// Representing Expression
 pub mod expr;
+
+/// Forward enumerator
+/// 
+/// Provides an `Executor` struct that manages the enumeration process, including the `enumerate` function for generating expressions based on the provided grammar and context.
 pub mod forward;
+
+/// Backward Deducer
+/// 
+/// Provides a `DeducerEnum` enum that represents different deduction strategies, including `Enumeration`, `ACS`, and `TopBlocked`.
 pub mod backward;
+
+/// Decision Tree Learning
 pub mod tree_learning;
+
+/// Acumulative case-splitting solutions.
 pub mod solutions;
+
+/// Handle special text objects.
 pub mod text;
 use std::{borrow::BorrowMut, cell::Cell, cmp::min, fs, os, process::exit};
 
@@ -35,6 +60,14 @@ use value::ConstValue;
 use crate::{backward::Problem, expr::cfg::{NonTerminal, ProdRule}, parser::{check::DefineFun, problem::PBEProblem}, solutions::{cond_search_thread, Solutions}, value::Type};
 #[derive(Debug, Parser)]
 #[command(name = "synthphonia")]
+/// A command-line interface configuration providing options for controlling a string synthesis process. 
+/// 
+/// The struct fields represent various parameters that users can configure, such as logging verbosity, file paths for grammar configurations, and the thread count for execution. 
+/// It includes options to enable or disable the use of the `ite` operator and deduction mode, which involves Enumeration and ACS. 
+/// Users can also choose to enable a separate all-example thread to optimize processing or extract constants when needed. 
+/// The input file path is required and can be in enriched sygus-if or smt2 format depending on whether synthesis or result-checking is required. 
+/// Additional debugging options are available, allowing for more verbose output, viewing examples, or simply printing the signature of a synthesis problem without solving it.
+/// 
 struct Cli {
     /// Log level
     #[arg(short, long, action = clap::ArgAction::Count)]
@@ -84,11 +117,26 @@ struct Cli {
 }
 
 #[thread_local]
+/// No longer used
 pub static DEBUG: Cell<bool> = Cell::new(false);
 
+/// no longer used
 pub static COUNTER: spin::Mutex<[usize; 6]> = spin::Mutex::new([0usize; 6]);
 
 #[tokio::main(flavor = "multi_thread")]
+/// Executes the main asynchronous function for processing string synthesis problems using a command-line interface. 
+/// 
+/// First, it parses command-line arguments to configure logging levels and debug settings. 
+/// If the `--sig` flag is specified, it reads and parses a synthesis problem from the input file and prints the function signature. 
+/// If the input file ends with `.smt2`, it handles an expression checking problem by parsing it, evaluating its expression in the context of provided examples, and comparing the result with expected outputs, printing the correctness count.
+/// 
+/// For other input files, it reads and parses a programming-by-example problem, creating a context-free grammar configuration from the synthesized function. 
+/// Optional configurations are applied through an external file, and context enrichment is based on example detection. 
+/// If constant extraction is enabled, constants from examples are added to grammar rules. 
+/// The configuration is logged, and examples are optionally shown. 
+/// The function adjusts for deduction settings and either solves the synthesis problem using top-blocked search without `ite` or sets up multi-threaded search loops to find solutions, outputting the derived function. 
+/// Finally, it ensures threads complete gracefully before exiting. 
+/// 
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let args = Cli::parse();
     log::set_log_level(args.verbose + 2);
@@ -188,6 +236,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     Ok(())
 }
 
+/// Enhances the given configuration by integrating it with a parsed problem derived from the provided SyGuS-IF string. 
 fn enrich_configuration(sygus_if: &str, mut cfg: Cfg) -> Cfg {
     let problem = PBEProblem::parse(sygus_if).unwrap();
     let mut synthfun = problem.synthfun().clone();

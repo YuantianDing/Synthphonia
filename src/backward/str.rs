@@ -13,9 +13,17 @@ use crate::{galloc::{self, AllocForAny, AllocForExactSizeIter, AllocForIter}, ne
 use crate::expr;
 use super::{Deducer, Problem};
 
+/// A container for managing a collection of asynchronous task join handles. 
+/// 
+/// 
+/// This structure encapsulates a reference-counted, mutable vector of asynchronous task handles, enabling concurrent polling of multiple tasks. 
+/// Its design allows shared ownership and in-place mutation of the task collection without requiring external synchronization, supporting operations that extend or poll the set of join handles as part of asynchronous execution workflows.
 pub struct HandleRcVec<T: Unpin>(Arc<UnsafeCell<Vec<JoinHandle<T>>>>);
 
 impl<T: Unpin> Clone for HandleRcVec<T> {
+    /// Clones the join handle collection by duplicating its internal shared pointer.
+    /// 
+    /// This method produces a new instance that shares the same underlying join handle storage, enabling multiple owners of the asynchronous task collection without copying the actual handles.
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
@@ -24,6 +32,11 @@ impl<T: Unpin> Clone for HandleRcVec<T> {
 impl<T: Unpin> Future for HandleRcVec<T> {
     type Output=T;
 
+    /// Polls a collection of asynchronous tasks and returns the output of the first task that is complete. 
+    /// 
+    /// This method iterates over the stored join handles and evaluates each one to determine if its associated task has finished, returning the completed result if available. 
+    /// If none of the tasks are ready, it returns a pending status.
+    /// 
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
         for v in unsafe{ self.0.as_mut()}.iter_mut() {
             if let Poll::Ready(a) = v.poll_unpin(cx) {
@@ -35,42 +48,62 @@ impl<T: Unpin> Future for HandleRcVec<T> {
 }
 
 impl<T: Unpin> Default for HandleRcVec<T> {
+    /// Returns a new default instance by invoking the primary constructor.
+    /// 
+    /// This method serves as a convenience alias for creating a default instance, allowing integration with traits or patterns that rely on default initialization. 
+    /// It encapsulates the functionality of the constructor without exposing implementation details.
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Unpin> HandleRcVec<T> {
+    /// Creates and returns a new instance of the container for asynchronous task handles.
+    /// 
+    /// Constructs an empty container by encapsulating an empty vector within an Arc and UnsafeCell, thereby enabling shared mutable access suitable for concurrent asynchronous operations.
     pub fn new() -> Self {
         Self(Arc::new(UnsafeCell::new(Vec::new())))
     }
+    /// Extends the internal collection with join handles obtained from the provided iterator. 
+    /// This method iterates over each join handle from the iterator and appends it into the underlying storage, making the join handles available for future asynchronous polling.
     pub fn extend_iter(&self, v: impl Iterator<Item=JoinHandle<T>>) {
         for f in v {
             unsafe{self.0.as_mut()}.push(f);
         }
     }
+    /// Returns the number of join handles stored in the underlying collection. 
+    /// This method accesses the internal vector unsafely to determine its length, providing a simple way to query how many tasks have been added.
     pub fn len(&self) -> usize {
         unsafe { self.0.as_mut().len() }
     }
 }
 
 #[derive(Debug)]
+/// A struct hold configuration for string deduction tasks.
 pub struct StrDeducer {
+    /// The non-terminal identifier of this deducer.
     pub nt: usize,
+    /// (No longer used, non-terminal to split to)
     pub split_once: (usize, usize),
+    /// (No longer used, non-terminal to split to)
     pub join: (usize, usize),
+    /// (No longer used, non-terminal to split to)
     pub ite_concat: (usize, usize),
+    /// Formatting operations to be applied during deduction, (operator, non-terminal to format to).
     pub formatter: Vec<(Op1Enum, usize)>,
+    /// No longer used
     pub decay_rate: usize,
 }
 
 impl StrDeducer {
+    /// Creates a new instance of the associated type with a specified non-terminal identifier, using the default setting. 
     pub fn new(nt: usize) -> Self {
         Self { nt, split_once: (usize::MAX, 0), join: (usize::MAX, 0), ite_concat: (usize::MAX, usize::MAX), formatter: Vec::new(), decay_rate: usize::MAX }
     }
 }
 
 impl Deducer for StrDeducer {
+    /// Deducing string synthesis problems. 
     async fn deduce(&'static self, exec: &'static Executor, prob: Problem) -> &'static crate::expr::Expr {
         assert!(self.nt == prob.nt);
         let this = self;
@@ -123,43 +156,10 @@ impl Deducer for StrDeducer {
 
 
 impl StrDeducer {
-    // #[inline]
-    // pub fn split1(&'static self, id: usize, prob: Problem, delimiter: &'static Expr, dvalue: Value) -> Option<JoinHandle<&'static Expr>> {
-    //     let v: &[&str] = prob.value.try_into().unwrap();
-    //     let dvalue: &[&str] = dvalue.try_into().unwrap();
-    //     let contain_count: usize = v.iter().zip(dvalue.iter()).filter(|(x, y)| if **y != "" { x.contains(*y) } else { false }).count();
-
-
-    //     if contain_count >= self.split_once.0 {
-    //         Some(self.split1_task(id, subprob, delimiter, dvalue, contain_count))
-    //     } else { None }
-    // }
+    
     #[inline]
-    fn decay(&self, i: usize) -> usize {
-        let rate = self.decay_rate;
-        let task = rate + min(100 * rate, task::number_of_tasks());
-        if i != usize::MAX { (i * task) / rate } else { i }
-    }
-    #[inline]
-    fn decay2(&self, i: usize) -> usize {
-        let rate = self.decay_rate;
-        let task = rate + min(100 * rate, 20 * task::number_of_tasks());
-        if i != usize::MAX { (i * task) / rate } else { i }
-    }
-    #[inline]
-    fn split_once_count(&self, exec: &'static Executor) -> usize {
-        min(exec.ctx.len(), self.decay(self.split_once.0))
-    }
-    #[inline]
-    fn ite_concat_count(&self, exec: &'static Executor) -> usize {
-        self.decay(self.ite_concat.0)
-    }
-    #[inline]
-    fn ite_concat_eq_count(&self, exec: &'static Executor) -> usize {
-        self.decay2(3)
-    }
-    #[inline]
-    fn split1(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
+    /// Deduce a string splitting by a specified delimiter. 
+     fn split1(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();
         let contain_count: usize = v.iter().zip(delimiter.iter()).filter(|(x, y)| if !y.is_empty() { x.contains(*y) } else { false }).count();
@@ -190,6 +190,7 @@ impl StrDeducer {
         }))
     }
     #[inline]
+    /// Generates a conditional expression 
     pub async fn generate_condition(&'static self, exec: &'static Executor, prob: Problem, result: &'static Expr) -> &'static Expr {
         if prob.value.is_all_true() { return result; }
         let left = pin!(exec.solve_task(prob));
@@ -203,6 +204,7 @@ impl StrDeducer {
         }
     }
     #[inline]
+    /// Deduce conditional concatenation deduction for string synthesis problems. 
     pub fn ite_concat(&'static self, exec: &'static Executor, mut prob: Problem, prefix: Value) -> Option<JoinHandle<&'static Expr>> {
         let v: &[&str] = prob.value.to_str();
         let prefix: &[&str] = prefix.to_str();
@@ -230,6 +232,7 @@ impl StrDeducer {
     }
 
     #[inline]
+    /// Deduce a string joining operation based on a specified delimiter. 
     fn join(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
         if prob.used_cost >= 6 { return None; }
 
@@ -252,6 +255,7 @@ impl StrDeducer {
         }))
     }
     #[inline]
+    /// Deduce to list of strings using join
     fn join_empty_str(&'static self, exec: &'static Executor, mut prob: Problem) -> Option<JoinHandle<&'static Expr>> {
         debg!("StrDeducer::join_empty_str {:?}", prob.value);
 
@@ -273,6 +277,7 @@ impl StrDeducer {
     //     expr!(Join {list} {delim}).galloc()
     // }
     #[inline]
+    /// Deduce formats of strings using the provided formatter
     async fn fmt(&self, mut problem: Problem, formatter: &(Op1Enum, usize), exec: &'static Executor) -> &'static Expr {
         let v = problem.value.to_str();
         if let Some((op, a, b, cond)) = formatter.0.format_all(v) {
@@ -296,6 +301,7 @@ impl StrDeducer {
     }
 }
 
+/// Deduce splits for each string in the input slice once over the corresponding delimiter, resulting in two separate string parts and a boolean indicating successful splits. 
 pub fn split_once(s: &'static [&'static str], delimiter: &'static [&'static str]) -> (Value, Value, Value) {
     assert!(s.len() == delimiter.len());
     let mut a = galloc::new_bvec(s.len());
@@ -319,6 +325,12 @@ pub fn split_once(s: &'static [&'static str], delimiter: &'static [&'static str]
     (Value::Str(a.into_bump_slice()), Value::Str(b.into_bump_slice()), Value::Bool(cases.into_bump_slice()))
 }
 
+/// Performs conditional splitting of string slices based on whether each string starts with its corresponding delimiter. 
+/// The function returns a tuple containing a boolean value and a string value.
+/// 
+/// Iterates over paired elements from the input slices, asserting equal lengths, and checks if each string begins with the associated delimiter. 
+/// It collects a boolean flag indicating the match and, when a match is present, stores the string segment after the delimiter; otherwise, it retains the original string. 
+/// The resulting vectors are converted into a boolean value and a string value, respectively.
 pub fn ite_concat_split(s: &'static [&'static str], delimiter: &'static [&'static str]) -> (Value, Value) {
     assert!(s.len() == delimiter.len());
     let mut a = galloc::new_bvec(s.len());
@@ -335,6 +347,10 @@ pub fn ite_concat_split(s: &'static [&'static str], delimiter: &'static [&'stati
     (Value::Bool(a.into_bump_slice()), Value::Str(b.into_bump_slice()))
 }
 
+/// Splits each string in the provided slice using corresponding delimiters and returns the collection of split results as a list value wrapped in Value. 
+/// 
+/// 
+/// Processes two slices of static string slices by pairing each input string with its associated delimiter, performing a split operation on the string, and then collecting each resultant iterator of substrings into a nested list structure conforming to the Value type.
 pub fn value_split(s: &'static [&'static str], delimiter: &'static [&'static str]) -> Value {
     Value::ListStr(s.iter().zip(delimiter.iter()).map(|(x, y)| x.split(y).galloc_collect()).galloc_collect())
 }

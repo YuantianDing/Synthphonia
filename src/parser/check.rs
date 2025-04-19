@@ -11,6 +11,7 @@ use super::{config::Config, ioexamples::IOExamples, problem::{new_custom_error_s
 
 
 impl Expr {
+    /// Parses an expression from a parsed `Pair` using an optional function signature and returns a static lifetime reference to an `Expr`, or an error. 
     pub fn parse(pair: Pair<'_, Rule>, sig: Option<&FunSig>) -> Result<&'static Expr, Error> {
         let mut vec = pair.into_inner().collect_vec();
         let mut config = Config::new();
@@ -58,12 +59,18 @@ impl Expr {
 
 #[derive(Debug, Display, Clone)]
 #[display(fmt = "(define-fun {} {})", "sig", "expr.format(&sig)")]
+/// A struct that encapsulates the definition of a function in the synthesis problem. 
+/// 
+/// It contains two fields: `sig`, which holds the function's signature defined by the `FunSig` type, describing the function's name, return type, and its parameters; and `expr`, a reference to a static expression represented by the `Expr` type, which defines the body or implementation of the function. 
+/// This structure forms a crucial part of representing function definitions within the synthesis process, linking the declared signature with its corresponding executable expression.
+/// 
 pub struct DefineFun {
     pub sig: FunSig,
     pub expr: &'static Expr,
 }
 
 impl DefineFun {
+    /// Parses a `DefineFun` instance from a sequence of parsed pairs. 
     pub fn parse<'i>(pairs: Pair<'_, Rule>) -> Result<DefineFun, Error> {
         let [name, arglist, typ, expr]: [_; 4] = pairs.into_inner().collect_vec().try_into().unwrap();
         let args: Vec<(String, Type)> = arglist
@@ -82,6 +89,15 @@ impl DefineFun {
 }
 
 #[derive(Debug, Clone)]
+/// A struct representing a problem to be checked for synthesis validity. 
+/// 
+/// This structure comprises essential components required for verifying the correctness of a synthesis problem in the string synthesis module. 
+/// 
+/// 
+/// It includes a logical representation of the synthesis context as a `String`, which outlines the constraints and specifications relevant to the synthesis task. 
+/// Furthermore, it contains a `DefineFun` element, which likely encapsulates the definition of the function(s) or grammar that need to be synthesized. 
+/// Additionally, it has an `IOExamples` member, supplying input/output examples that serve as benchmarks or validation points to corroborate the synthesized solutions against given expectations or specifications. 
+/// This combination ensures comprehensive representation and validation capacity for synthesis problems.
 pub struct CheckProblem {
     pub logic: String,
     pub definefun: DefineFun,
@@ -89,6 +105,7 @@ pub struct CheckProblem {
 }
 
 impl CheckProblem {
+    /// Parses the input string to create a `CheckProblem` instance. 
     pub fn parse(input: &str) -> Result<CheckProblem, Error> {
         let [file]: [_; 1] = ProblemParser::parse(Rule::smtfile, input)?.collect_vec().try_into().unwrap();
         let [_, logic, definefun, examples, checksat]: [_; 5] = file.into_inner().collect_vec().try_into().unwrap();

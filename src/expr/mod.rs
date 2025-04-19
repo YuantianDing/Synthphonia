@@ -3,14 +3,29 @@ use enum_dispatch::enum_dispatch;
 use crate::{debg2, galloc::AllocForAny, parser::problem::FunSig, value::{ConstValue, Value}};
 
 
+/// Program running context
 pub mod context;
+
+/// Context-free grammar
 pub mod cfg;
+
+/// Operators
 pub mod ops;
 
 use derive_more::DebugCustom;
 
 use self::{context::Context, ops::{Op1, Op1Enum, Op2, Op2Enum, Op3, Op3Enum}};
 #[derive(DebugCustom, PartialEq, Eq, Clone, Hash)]
+/// Expressions, statically referenced.
+/// 
+/// These expressions include constants, variables, and operations, each of which is encapsulated in the `Expr` enum. 
+/// Constants are represented by the `Const` variant, holding a `ConstValue`. 
+/// Variables are stored as a 64-bit integer with the `Var` variant. 
+/// Operations are categorized into unary, binary, and ternary, represented by `Op1`, `Op2`, and `Op3` respectively, each associated with an operation enumeration and the relevant sub-expressions. 
+/// 
+/// 
+/// The enum variants include formatting annotations used in debugging to display the expressions in a readable format, enhancing the ability to trace and verify expression states during execution. 
+/// These representations ensure the flexibility and power required for manipulating and evaluating expressions within the synthesis tasks.
 pub enum Expr {
     #[debug(fmt = "{:?}", _0)]
     Const(ConstValue),
@@ -25,6 +40,7 @@ pub enum Expr {
 }
 
 impl Expr {
+    /// Evaluates the expression within a given context to produce a `Value`. 
     pub fn eval(&self, ctx: &Context) -> Value {
         
         match self {
@@ -35,6 +51,7 @@ impl Expr {
             Expr::Op3(op3, a1, a2, a3) => op3.eval(a1.eval(ctx), a2.eval(ctx), a3.eval(ctx)),
         }
     }
+    /// Calculates the cost of an expression. 
     pub fn cost(&self) -> usize {
         match self {
             Expr::Const(c) => 1,
@@ -44,6 +61,7 @@ impl Expr {
             Expr::Op3(op3, a1, a2, a3) => op3.cost() + a1.cost() + a2.cost() + a3.cost(),
         }
     }
+    /// Determines whether an expression contains another expression. 
     pub fn contains(&self, other: &Expr) -> bool {
         if self == other { true } 
         else {
@@ -56,6 +74,7 @@ impl Expr {
             }
         }
     }
+    /// Formats an expression into a string representation. 
     pub fn format(&self, sig: &FunSig) -> String {
         match self {
             Expr::Const(c) => format!("{:?}", c),
@@ -65,9 +84,11 @@ impl Expr {
             Expr::Op3(op3, a1, a2, a3) => format!("({} {} {} {})", op3, a1.format(sig), a2.format(sig), a3.format(sig)),
         }
     }
+    /// Construct a ternary expression that represents an if-then-else operation within the context of the `Expr` enum. 
     pub fn ite(&'static self, t: &'static Expr, f: &'static Expr) -> &'static Expr {
         crate::expr!(Ite {self} {t} {f}).galloc()
     }
+    /// Converts an `Expr` into an `Expression`. 
     pub fn to_expression(&self) -> Expression {
         match self {
             Expr::Const(c) => Expression::Const(*c),
@@ -80,6 +101,7 @@ impl Expr {
 }
 
 #[derive(DebugCustom, PartialEq, Eq, Clone, Hash)]
+/// Expressions, owned.
 pub enum Expression {
     #[debug(fmt = "{:?}", _0)]
     Const(ConstValue),
@@ -94,6 +116,7 @@ pub enum Expression {
 }
 
 impl Expression {
+    /// Converts an `Expression` into a statically allocated `Expr` reference. 
     pub fn alloc_local(self) -> &'static Expr {
         match self {
             Expression::Const(a) => Expr::Const(a).galloc(),
@@ -123,6 +146,7 @@ macro_rules! expr_no_use {
 }
 
 #[macro_export]
+/// Macro to create of expressions in the Synthphonia module. 
 macro_rules! expr {
     ( $( $inner:tt )*) => { {
         use $crate::galloc::AllocForAny;

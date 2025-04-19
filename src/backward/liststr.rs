@@ -11,12 +11,20 @@ use super::{Deducer, Problem};
 
 
 #[derive(Debug)]
+/// Represents a deduction strategy for list transformation synthesis using an optional mapping configuration.
+/// 
+/// Encapsulates an index for the non-terminal symbol and an optional grammar configuration that may be used for map-based operations during list deduction.
 pub struct ListDeducer {
     pub nt: usize,
     pub map: Option<Cfg>,
 }
 
 impl Deducer for ListDeducer {
+    /// Deduce a synthesis subproblem asynchronously by concurrently monitoring a task and mapping-related events to yield the resulting expression. 
+    /// 
+    /// 
+    /// This function triggers debugging output, acquires a task associated with the current subproblem, and sets up a listener that, if a mapping configuration is present, extends a collection of futures via a mapping operation. 
+    /// It then concurrently awaits multiple asynchronous futures and returns the selected synthesized expression based on the first completed event.
     async fn deduce(&'static self, exec: &'static crate::forward::executor::Executor, prob: Problem) -> &'static crate::expr::Expr {
         debg!("Deducing subproblem: {} {:?}", exec.cfg[self.nt].name, prob.value);
         let task = exec.data[self.nt].all_eq.acquire(prob.value);
@@ -35,6 +43,7 @@ impl Deducer for ListDeducer {
 
 impl ListDeducer {
     #[inline]
+    /// Deduce a map operation
     pub fn map(&'static self, exec: &'static Executor, mut prob: Problem, list: Value) -> Option<JoinHandle<&'static Expr>> {
         if prob.used_cost >= 6 { return None; }
         let p = prob.value.to_liststr();

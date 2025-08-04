@@ -1,3 +1,5 @@
+[![crates.io](https://img.shields.io/crates/v/synthphonia-rs.svg)](https://crates.io/crates/synthphonia-rs)
+[![Documentation](https://docs.rs/synthphonia-rs/badge.svg)](https://yuantianding.github.io/Synthphonia)
 
 # Artifact for Synthphonia (DryadSynth String Solver)
 
@@ -25,10 +27,11 @@ You can also manually compile all solvers by following the instructions below. F
 - **Duet**: Install OPAM and the following packages: `z3.4.8.9`, `containers`, `containers-data`, `batteries`, `ocamlgraph`, and `sexplib`. Ensure compatibility with your OCaml compiler. **Note:** `python2` is required to build `z3.4.8.9`.
 - **Probe**: Install JVM, and make sure `sbt`, and `cvc4` in your `$PATH`, then build using: `sbt assembly`.
 - **FlashFill++**: Install [.NET 6.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) and run: `dotnet build`.
-- **Synthphonia**: Follow the setup guide in the [Synthphonia repository](https://github.com/YuantianDing/Synthphonia). Note to run `test.py` you will also need to symlink the generated binary `synthphonia` under `solvers/synthphonia` directory:
+- **Synthphonia**: We provide two different versions of Synthphonia: `solvers/synthphonia` and `solvers/noacs`. Both of the two versions can be simply compiled using `cargo build`. Note to run `test.py` you will also need to symlink the generated binary `synthphonia` under `solvers/synthphonia` directory:
 
     ```sh
-    cd solvers/synthphonia && ln -s target/release/synthphonia synthphonia
+    ln -s solvers/synthphonia/target/release/synthphonia solvers/synthphonia/synthphonia
+    ln -s solvers/noacs/target/release/noacs solvers/noacs/noacs
     ```
 
 Additionally, to run the `test.py` script, you need to install the required Python dependencies:
@@ -59,6 +62,7 @@ artifact/
         duet/
         probe/
         prose/
+        noacs/
         synthphonia/
     test_utils/       # A Python module required by `test.py`
     test.py           # Testing configuraion, also the script to run tests.

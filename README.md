@@ -1,6 +1,10 @@
 
 # Synthphonia: DryadSynth Solver for Strings
 
+[![crates.io](https://img.shields.io/crates/v/synthphonia-rs.svg)](https://crates.io/crates/synthphonia-rs)
+[![Documentation](https://docs.rs/synthphonia-rs/badge.svg)](https://yuantianding.github.io/Synthphonia)
+
+
 Synthphonia is the name for the internal algorithm used by [DryadSynth](https://github.com/purdue-cap/DryadSynth) string solver.
 
 ## Build

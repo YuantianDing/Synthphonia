@@ -1,18 +1,20 @@
-use std::{cmp::{max, min}, future::Future};
+use std::{cmp::{max, min}, future::Future, usize};
 
-use crate::{debg, expr::{cfg::{Cfg, NonTerminal, ProdRule}, context::Context, Expr}, forward::executor::Executor, info, parser::problem, utils::select_all, value::Value};
+use crate::{debg, expr::{cfg::{Cfg, NonTerminal, ProdRule}, context::Context, Expr}, forward::executor::Executor, info, parser::problem, utils::select_all, value::{Type, Value}};
 
 
 use futures::{future::Either, select, FutureExt};
 use itertools::Itertools;
 
-use self::{liststr::ListDeducer, simple::SimpleDeducer, str::StrDeducer};
+use self::{liststr::ListDeducer, simple::SimpleDeducer, str::StrDeducer, int::IntDeducer};
 use derive_more::DebugCustom;
 /// Deduction for string
 pub mod str;
 
 /// Basic Deduction
 pub mod simple;
+
+pub mod int;
 
 /// Deduction for list of strings
 pub mod liststr;
@@ -80,6 +82,8 @@ pub enum DeducerEnum {
     Simple(SimpleDeducer),
     #[debug(fmt = "{:?}", _0)]
     List(ListDeducer),
+    #[debug(fmt = "{:?}", _0)]
+    Int(IntDeducer),
 }
 
 impl DeducerEnum {
@@ -108,9 +112,12 @@ impl DeducerEnum {
                     }
                 }
                 if let Some(ProdRule::Op2(_, n1, n2)) = cfg[nt].get_op2("str.join") {
-                    if n2 == nt && cfg[n1].get_op1("list.map").is_some() {
+                    if n2 == nt && (cfg[n1].get_op1("list.map").is_some() || cfg[n1].get_op1("list.filter").is_some()) {
                         result.join = (2, n1)
                     } 
+                }
+                if let Some(ProdRule::Op2(_, n1, n2)) = cfg[nt].get_op2("list.at") {
+                    result.index = (n1 , n2)
                 }
                 result.decay_rate = cfg[nt].config.get_usize("str.decay_rate").unwrap_or(900);
                 result.formatter.append(&mut cfg[nt].get_all_formatter());
@@ -118,7 +125,7 @@ impl DeducerEnum {
                 Self::Str(result)
             }
             crate::value::Type::ListStr => {
-                let mut result = ListDeducer { nt, map: None};
+                let mut result = ListDeducer { nt, map: None, filter: None};
                 if cfg[nt].get_op1("list.map").is_some() {
                     let mut cfg2 = cfg.clone();
                     for nt in cfg2.iter_mut() {
@@ -127,7 +134,24 @@ impl DeducerEnum {
                     info!("Map Cfg {:?}", cfg2);
                     result.map = Some(cfg2);
                 }
+                if cfg[nt].get_op1("list.filter").is_some() {
+                    if let Some(bool_nt) = cfg.iter().position(|a| a.ty == Type::Bool) {
+                        let mut cfg2 = cfg.change_start(bool_nt);
+                        for nt in cfg2.iter_mut() {
+                            nt.rules.retain(|x| !matches!(x, ProdRule::Var(a) if *a > 0))
+                        }
+                        info!("Filter Cfg {:?}", cfg2);
+                        result.filter = Some(cfg2);
+                    }
+                }
                 Self::List(result)
+            }
+            crate::value::Type::Int => {
+                let mut result = IntDeducer{nt, len: usize::MAX};
+                if let Some(ProdRule::Op1(_, nt)) = cfg[nt].get_op1("list.len") {
+                    result.len = nt;
+                }
+                Self::Int(result)
             }
             _ => Self::Simple(SimpleDeducer{ nt }),
         }
@@ -149,6 +173,7 @@ impl Deducer for DeducerEnum {
             DeducerEnum::Str(a) => a.deduce(exec, problem).await,
             DeducerEnum::Simple(a) => a.deduce(exec, problem).await,
             DeducerEnum::List(a) => a.deduce(exec, problem).await,
+            DeducerEnum::Int(a) => a.deduce(exec, problem).await,
         };
         debg!("Subproblem {:?} solved", problem.value);
         exec.data[problem.nt].add_ev(result, problem.value);

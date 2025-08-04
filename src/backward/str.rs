@@ -7,7 +7,7 @@ use futures_core::Future;
 use itertools::Itertools;
 use simple_rc_async::task::{self, JoinHandle};
 
-use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::executor::Executor, info, text::formatting::Op1EnumToFormattingOp, utils::select_ret5, DEBUG};
+use crate::{async_closure, closure, debg, expr::{ context::Context, ops::Op1Enum, Expr}, forward::executor::Executor, info, utils::select_ret5, value::Type, DEBUG};
 use crate::{galloc::{self, AllocForAny, AllocForExactSizeIter, AllocForIter}, never, utils::{pending_if, select_all, select_ret, select_ret3, select_ret4, UnsafeCellExt}, value::Value};
 
 use crate::expr;
@@ -89,6 +89,7 @@ pub struct StrDeducer {
     pub join: (usize, usize),
     /// (No longer used, non-terminal to split to)
     pub ite_concat: (usize, usize),
+    pub index: (usize, usize),
     /// Formatting operations to be applied during deduction, (operator, non-terminal to format to).
     pub formatter: Vec<(Op1Enum, usize)>,
     /// No longer used
@@ -98,7 +99,7 @@ pub struct StrDeducer {
 impl StrDeducer {
     /// Creates a new instance of the associated type with a specified non-terminal identifier, using the default setting. 
     pub fn new(nt: usize) -> Self {
-        Self { nt, split_once: (usize::MAX, 0), join: (usize::MAX, 0), ite_concat: (usize::MAX, usize::MAX), formatter: Vec::new(), decay_rate: usize::MAX }
+        Self { nt, split_once: (usize::MAX, 0), join: (usize::MAX, 0), ite_concat: (usize::MAX, usize::MAX), index: (usize::MAX, usize::MAX), formatter: Vec::new(), decay_rate: usize::MAX }
     }
 }
 
@@ -106,6 +107,7 @@ impl Deducer for StrDeducer {
     /// Deducing string synthesis problems. 
     async fn deduce(&'static self, exec: &'static Executor, prob: Problem) -> &'static crate::expr::Expr {
         assert!(self.nt == prob.nt);
+        assert!(prob.value.ty() == Type::Str, "Expected a string value, got: {:?}", prob.value);
         let this = self;
         let mut eq = pin!(exec.data[self.nt].all_eq.acquire(prob.value));
         debg!("Deducing subproblem: {} {:?}", self.nt, prob.value);
@@ -114,23 +116,34 @@ impl Deducer for StrDeducer {
         // let mut delimiterset = HashSet::<Vec<&'static str>>::new();
         let futures = HandleRcVec::new();
 
-        let substr_event = exec.data[self.nt].substr().unwrap().listen_for_each(prob.value, closure! { clone futures, clone prob; move |delimiter: Value| {
-            // let vec = delimiter.to_str().iter().zip(prob.value.to_str().iter()).map(|(a, b)| if b.contains(a) { *a } else { &"" }).collect_vec();
-            // if delimiterset.insert(vec) {
-                futures.extend_iter(this.split1(exec, prob, delimiter).into_iter());
-                futures.extend_iter(this.join(exec, prob, delimiter).into_iter());
-            // }
-            None::<&'static Expr>
-        }});
+        let substr_event = closure! { clone futures, clone prob; async move {
+            if exec.data[self.nt].substr().is_some() {
+                exec.data[self.nt].substr().unwrap().listen_for_each(prob.value, closure! { clone futures, clone prob; move |delimiter: Value| {
+                    futures.extend_iter(this.split1(exec, prob, delimiter).into_iter());
+                    futures.extend_iter(this.join(exec, prob, delimiter).into_iter());
+                    None::<&'static Expr>
+                }}).await
+            } else { never!(&'static Expr) }
+        }};
         
-        // let mut prefixset = HashSet::<Vec<&'static str>>::new();
-        let prefix_event = exec.data[self.nt].prefix().unwrap().listen_for_each(prob.value, closure! { clone futures, clone prob; move |prefix: Value| {
-            // let vec = prefix.to_str().iter().zip(prob.value.to_str().iter()).map(|(a, b)| if b.starts_with(a) { *a } else { &"" }).collect_vec();
-            // if prefixset.insert(vec) {
-                futures.extend_iter(this.ite_concat(exec, prob, prefix).into_iter());
-            // }
-            None::<&'static Expr>
-        }});
+        let prefix_event = closure! { clone futures, clone prob; async move {
+            if exec.data[self.nt].prefix().is_some() {
+                exec.data[self.nt].prefix().unwrap().listen_for_each(prob.value, move |prefix: Value| {
+                    futures.extend_iter(this.ite_concat(exec, prob, prefix).into_iter());
+                    None::<&'static Expr>
+                }).await
+            } else { never!(&'static Expr) }
+        }};
+
+        let index_event = closure! { clone futures, clone prob; async move {
+            if self.index.0 != usize::MAX && prob.used_cost < 3 && exec.data[self.index.0].contains.is_some() {
+                exec.data[self.index.0].contains.as_ref().unwrap().listen_for_each(prob.value, move |list: Value| {
+                    futures.extend_iter(this.index(exec, prob, list).into_iter());
+                    None::<&'static Expr>
+                }).await
+            } else { never!(&'static Expr) }
+        }};
+
         let join_empty_str_cond = self.join.0 < usize::MAX && prob.used_cost <= 8 &&
             prob.value.to_str().iter().all(|x| x.chars().all(|c| c.is_alphanumeric())) &&
             prob.value.to_str().iter().any(|x| x.len() > 2);
@@ -146,7 +159,8 @@ impl Deducer for StrDeducer {
 
         let substr_event = pin!(substr_event);
         let prefix_event = pin!(prefix_event);
-        let events = select_ret3(prefix_event, substr_event, map_event);
+        let index_event = pin!(index_event);
+        let events = select_ret4(prefix_event, substr_event, map_event, index_event);
 
         let result = select_ret4(eq, events, futures, pin!(select_all(iter))).await;
         result
@@ -168,7 +182,7 @@ impl StrDeducer {
         
         Some(task::spawn(async move {
             let (a, b, cases) = split_once(v, delimiter);
-            if !cases.is_all_true() && self.ite_concat.1 == usize::MAX { return never!() }
+            if !cases.is_all_true() || self.ite_concat.1 == usize::MAX { return never!() }
             exec.waiting_tasks().inc_cost(&mut prob, 1).await;
 
             debg!("StrDeducer::split1 {v:?} {delimiter:?}");
@@ -231,22 +245,40 @@ impl StrDeducer {
         }))
     }
 
+    pub fn index(&'static self, exec: &'static Executor, mut prob: Problem, list: Value) -> Option<JoinHandle<&'static Expr>> {
+        let v: &[&str] = prob.value.to_str();
+        let list : &[&[&str]] = list.to_liststr();
+
+        let indices = v.iter().zip(list.iter()).map(|(x, y)| {
+            y.iter().position(|&z| z == *x).unwrap_or(y.len()) as i64
+        }).galloc_scollect();
+        if self.index.0 == usize::MAX { return None; }
+        Some(task::spawn(async move {
+            debg!("StrDeducer::index {} {:?} {:?} {:?} {} ", prob.nt, v, list, indices, self.index.1);
+            // exec.waiting_tasks().inc_cost(&mut prob, 1).await;
+
+            let indices = exec.data[self.index.1].all_eq.acquire(indices.into()).await;
+            let mut result = exec.data[self.index.0].all_eq.get(list.into());
+            expr!(At {result} {indices}).galloc()
+        }))
+    }
+
     #[inline]
     /// Deduce a string joining operation based on a specified delimiter. 
     fn join(&'static self, exec: &'static Executor, mut prob: Problem, delimiter: Value) -> Option<JoinHandle<&'static Expr>> {
-        if prob.used_cost >= 6 { return None; }
-
         let delimiter = delimiter.to_str();
         let v = prob.value.to_str();
+        if prob.used_cost >= 5 { return None; }
+        
         let contain_count: usize = v.iter().zip(delimiter.iter()).map(|(x, y)| x.matches(y).count() + 1).max().unwrap_or(10000);
         if contain_count < self.join.0 { return None; }
-
+        
         
         Some(task::spawn(async move {
-            exec.waiting_tasks().inc_cost(&mut prob, 1).await;
+            debg!("StrDeducer::join {v:?} {delimiter:?} {} {}", prob.used_cost, contain_count);
+            // exec.waiting_tasks().inc_cost(&mut prob, 1).await;
 
             let a = value_split(v, delimiter);
-            debg!("StrDeducer::join {v:?} {delimiter:?}");
 
             let list = exec.solve_task(prob.with_nt(self.join.1, a)).await;
             

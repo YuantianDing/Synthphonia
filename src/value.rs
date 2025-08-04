@@ -32,6 +32,8 @@ pub enum Type {
     ListInt,
     #[debug(fmt = "(List String)")]
     ListStr,
+    #[debug(fmt = "(_ BitVec {_0})")]
+    BitVector(usize),
 }
 
 impl Type {
@@ -78,6 +80,8 @@ pub enum Value {
     ListInt(&'static [&'static [i64]]),
     #[debug(fmt = "{:?}", _0)]
     ListStr(&'static [&'static [&'static str]]),
+    #[debug(fmt = "{:x?}", _1)]
+    BitVector(usize, &'static [u64]),
     #[debug(fmt = "null")]
     Null,
 }
@@ -97,6 +101,7 @@ impl Value {
             Value::Str(a) => Value::Str(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
             Value::ListInt(a) => Value::ListInt(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
             Value::ListStr(a) => Value::ListStr(exs.iter().cloned().map(|i| a[i]).galloc_scollect()),
+            Value::BitVector(i, a) => Value::BitVector(i, exs.iter().cloned().map(|j| a[j]).galloc_scollect()),
             Value::Null => Value::Null,
         }
     }
@@ -113,6 +118,7 @@ impl Value {
             Self::Float(_) => Type::Float,
             Self::ListInt(_) => Type::ListInt,
             Self::ListStr(_) => Type::ListStr,
+            Self::BitVector(i, _) => Type::BitVector(*i),
             Self::Null => Type::Null,
         }
     }
@@ -129,6 +135,7 @@ impl Value {
             Value::Float(s) => s.len(),
             Value::ListInt(l) => l.len(),
             Value::ListStr(l) => l.len(),
+            Value::BitVector(_, b) => b.len(),
             Value::Null => 0,
         }
     }
@@ -144,6 +151,7 @@ impl Value {
             Value::Str(s) => Some(s.iter().map(|x| x.len()).collect_vec()),
             Value::ListInt(l) => Some(l.iter().map(|x| x.len()).collect_vec()),
             Value::ListStr(l) => Some(l.iter().map(|x| x.len()).collect_vec()),
+            Value::BitVector(_, _) => None,
         }
     }
     #[inline(always)]
@@ -186,6 +194,7 @@ impl Value {
             Type::Int => Value::Int(constants.map(|p| p.as_i64().unwrap()).galloc_scollect()),
             Type::Str => Value::Str(constants.map(|p| p.as_str().unwrap()).galloc_scollect()),
             Type::Float => Value::Float(constants.map(|p| p.as_float().unwrap()).galloc_scollect()),
+            Type::BitVector(i) => Value::BitVector(i, constants.map(|p| p.as_bv().unwrap()).galloc_scollect()),
             _ => panic!("should not reach here"),
         }
     }
@@ -212,6 +221,9 @@ impl Value {
     /// Transforms the underlying data by attempting to convert the current value into the desired string slice representation and immediately unwrapping the result. 
     /// This operation guarantees that the conversion succeeds, provided the value is compatible with the expected type.
     pub fn to_str(self) -> &'static [&'static str] {
+        self.try_into().unwrap()
+    }
+    pub fn to_int(self) -> &'static [i64] {
         self.try_into().unwrap()
     }
     /// Converts a value into a static list of string slices by performing a conversion using the TryInto trait. 
@@ -320,6 +332,9 @@ pub enum ConstValue {
     Float(F64),
     #[debug(fmt = "{:?}", _0)]
     #[display(fmt = "{:?}", _0)]
+    BitVector(usize, u64),
+    #[debug(fmt = "{:?}", _0)]
+    #[display(fmt = "{:?}", _0)]
     Expr(&'static Expr)
 }
 
@@ -350,6 +365,7 @@ impl ConstValue {
             Self::Bool(_) => Type::Bool,
             Self::Str(_) => Type::Str,
             Self::Float(_) => Type::Float,
+            Self::BitVector(i, _) => Type::BitVector(*i),
             Self::Null => Type::Null,
             Self::Expr(_) => Type::Null,
         }
@@ -362,6 +378,9 @@ impl ConstValue {
     /// Returns the contained integer value if the input represents one. 
     /// This function checks if the instance holds an integer and, if so, returns it inside an Option; otherwise, it yields None.
     pub fn as_i64(&self) -> Option<i64> { if let Self::Int(b) = self { Some(*b) } else { None }}
+    /// Returns the contained integer value if the input represents one. 
+    /// This function checks if the instance holds an integer and, if so, returns it inside an Option; otherwise, it yields None.
+    pub fn as_bv(&self) -> Option<u64> { if let Self::BitVector(_, b) = self { Some(*b) } else { None }}
     /// Converts the integer variant of a constant value into a usize if applicable. 
     /// 
     /// 
@@ -396,6 +415,7 @@ impl ConstValue {
             ConstValue::Int(t) => Value::Int((0..len).map(|_| *t).galloc_scollect()),
             ConstValue::Str(t) => Value::Str((0..len).map(|_| *t).galloc_scollect()),
             ConstValue::Float(f) => Value::Float((0..len).map(|_| *f).galloc_scollect()),
+            ConstValue::BitVector(i, a) => Value::BitVector(*i, (0..len).map(|_| *a).galloc_scollect()),
             ConstValue::Null => panic!("Unable to convert Null to Value"),
             ConstValue::Expr(_) => panic!("Unable to convert Expr to Value"),
         }
@@ -415,6 +435,7 @@ pub fn consts_to_value(consts: Vec<ConstValue>) -> Value {
         ConstValue::Int(_) => Value::Int(consts.into_iter().map(|a| a.as_i64().unwrap()).galloc_scollect()),
         ConstValue::Str(_) => Value::Str(consts.into_iter().map(|a| a.as_str().unwrap()).galloc_scollect()),
         ConstValue::Float(_) => Value::Float(consts.into_iter().map(|a| a.as_float().unwrap()).galloc_scollect()),
+        ConstValue::BitVector(i, _) => Value::BitVector(i, consts.into_iter().map(|a| a.as_bv().unwrap()).galloc_scollect()),
         ConstValue::Expr(_) => todo!(),
     }
 }

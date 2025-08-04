@@ -37,12 +37,14 @@
       (ntList (List String) (
             (str.split ntString ntString)
             (list.map ntList)
+            (list.filter ntList)
       ))
       #data.listsubseq.sample:0
 ))
 
 
-(constraint (= (f "4,8,6,3,2") "5,9,7,4,3"))
+(constraint (= (f "4,8,6,3,9,1,7,6,8,2") "4,3,1,2"))
+(constraint (= (f "1,8,6,4,9,6,8,3") "1,4,3"))
 
 
 (check-synth)

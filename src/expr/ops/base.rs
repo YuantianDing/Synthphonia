@@ -6,10 +6,43 @@ use itertools::izip;
 
 use super::Op3;
 
-new_op2!(Eq, "=",
-    (Int, Int) -> Bool { |(s1, s2)| s1 == s2 },
-    (Str, Str) -> Bool { |(s1, s2)| s1 == s2 }
-);
+crate::impl_basic!(Eq,"=");
+impl crate::forward::enumeration::Enumerator2 for Eq{}
+
+impl crate::expr::ops::Op2 for Eq {
+    fn cost(&self) -> usize {
+        self.0
+    }
+    fn try_eval(&self, a1: Value, a2: Value) -> (bool, Value) {
+        match (a1, a2) {
+            (Value::Int(s1), Value::Int(s2)) => (
+                true,
+                Value::Bool(
+                    itertools::izip!(s1.iter(), s2.iter())
+                        .map(|(s1, s2)| s1 == s2)
+                        .galloc_scollect(),
+                ),
+            ),
+            (Value::Str(s1), Value::Str(s2)) => (
+                true,
+                Value::Bool(
+                    itertools::izip!(s1.iter(), s2.iter())
+                        .map(|(s1, s2)| s1 == s2)
+                        .galloc_scollect(),
+                ),
+            ),
+            (Value::BitVector(_, s1), Value::BitVector(_, s2)) => (
+                true,
+                Value::Bool(
+                    itertools::izip!(s1.iter(), s2.iter())
+                        .map(|(s1, s2)| s1 == s2)
+                        .galloc_scollect(),
+                ),
+            ),
+            _ => (false, Value::Null),
+        }
+    }
+}
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq,Hash)]
 /// A structured data representation used to denote a conditional expression with two components. 

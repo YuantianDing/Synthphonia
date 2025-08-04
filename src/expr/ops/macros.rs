@@ -31,7 +31,9 @@ macro_rules! for_all_op1 {
             FNotNeg
             FIsZero
             FLen
-            Map);
+            Map
+            Filter
+            BvNot BvNeg);
     };
 }
 #[macro_export]
@@ -44,8 +46,9 @@ macro_rules! for_all_op1 {
 /// 
 macro_rules! for_all_op2 {
     () => { 
-        _do!(Concat Eq At PrefixOf SuffixOf Contains Split Join Count Add Sub Head Tail Filter TimeFloor TimeAdd Floor Round Ceil FAdd FSub FFloor FRound FCeil FCount FShl10
-            TimeMul StrAt)
+        _do!(Concat Eq At PrefixOf SuffixOf Contains Split Join Count Add Sub Head Tail TimeFloor TimeAdd Floor Round Ceil FAdd FSub FFloor FRound FCeil FCount FShl10
+            TimeMul StrAt
+            BvAdd BvSub BvMul BvUDiv BvURem BvSDiv BvSRem BvOr BvAnd BvXor BvShl BvAShr BvLShr)
     };
 }
 #[macro_export]

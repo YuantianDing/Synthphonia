@@ -13,7 +13,7 @@ use crate::{
 };
 
 /// Term Dispatcher for length
-pub struct Data{
+pub struct Data {
     found: HashMap<Vec<usize>, Vec<Value>>,
     event: HashMap<Vec<usize>, broadcast::Sender<Value>>,
     len_limit: usize,
@@ -51,16 +51,14 @@ impl Data {
         }
     }
     #[inline(always)]
-    pub async fn listen_for_each<T>(&mut self, value: Value, mut f: impl FnMut(Value) -> Option<T>) -> T {
-        let v = value.length_inside().unwrap();
-
-        if let Some(vec) = self.found.get(&v) {
+    pub async fn listen_for_each<T>(&mut self, value: Vec<usize>, mut f: impl FnMut(Value) -> Option<T>) -> T {
+        if let Some(vec) = self.found.get(&value) {
             for v in vec {
                 if let Some(t) = f(*v) { return t; }
             }
         }
 
-        let mut rv = self.listen_at(v);
+        let mut rv = self.listen_at(value);
         loop {
             if let Some(t) = f(rv.next().await.unwrap()) { return t; }
         }

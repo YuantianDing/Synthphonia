@@ -39,32 +39,32 @@ impl Data {
         } else { None }
     }
     
-    pub fn to_ranges(&self, value: Value) -> Option<Vec<Vec<Range<usize>>>> {
-        if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
-            assert!(v.len() == self.expected.len());
-            let mut result = Vec::with_capacity(v.len());
-            for (&e, &x) in self.expected.iter().zip(v.iter()) {
-                if x.is_empty() {  result.push(vec![0..0]); continue; }
-                let r = e.match_indices(x).map(|(i, _)| i..(i+x.len())).collect_vec();
-                if r.is_empty() { return None; }
-                result.push(r)
-            };
-            Some(result)
-        } else { None }
-    }
-    pub fn to_range(&self, value: Value) -> Option<Vec<Range<usize>>> {
-        if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
-            assert!(v.len() == self.expected.len());
-            let mut result = Vec::with_capacity(v.len());
-            for (&e, &x) in self.expected.iter().zip(v.iter()) {
-                if x.is_empty() { result.push(0..0); continue; }
-                if let Some((i, _)) = e.match_indices(x).next() {
-                    result.push(i..(i+x.len()))
-                } else { return None; }
-            };
-            Some(result)
-        } else { None }
-    }
+    // fn to_ranges(&self, value: Value) -> Option<Vec<Vec<Range<usize>>>> {
+    //     if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
+    //         assert!(v.len() == self.expected.len());
+    //         let mut result = Vec::with_capacity(v.len());
+    //         for (&e, &x) in self.expected.iter().zip(v.iter()) {
+    //             if x.is_empty() {  result.push(vec![0..0]); continue; }
+    //             let r = e.match_indices(x).map(|(i, _)| i..(i+x.len())).collect_vec();
+    //             if r.is_empty() { return None; }
+    //             result.push(r)
+    //         };
+    //         Some(result)
+    //     } else { None }
+    // }
+    // fn to_range(&self, value: Value) -> Option<Vec<Range<usize>>> {
+    //     if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
+    //         assert!(v.len() == self.expected.len());
+    //         let mut result = Vec::with_capacity(v.len());
+    //         for (&e, &x) in self.expected.iter().zip(v.iter()) {
+    //             if x.is_empty() { result.push(0..0); continue; }
+    //             if let Some((i, _)) = e.match_indices(x).next() {
+    //                 result.push(i..(i+x.len()))
+    //             } else { return None; }
+    //         };
+    //         Some(result)
+    //     } else { None }
+    // }
     pub fn expected_contains(&self, value: Value) -> bool {
         if let Ok(v) = TryInto::<&[&str]>::try_into(value) {
             v.iter().cloned().zip(self.expected.iter().cloned()).all(|(a, b)| b.contains(a))

@@ -66,10 +66,10 @@ impl TaskWaitingCost {
     }
 }
 
-pub(crate) struct OtherData {
-    pub(crate) all_str_const: HashSet<&'static str>,
-    // pub problems: UnsafeCell<HashMap<(usize, Value), TaskORc<&'static Expr>>>,
-}
+// pub(crate) struct OtherData {
+//     pub(crate) all_str_const: HashSet<&'static str>,
+//     // pub problems: UnsafeCell<HashMap<(usize, Value), TaskORc<&'static Expr>>>,
+// }
 
 /// A structure representing an executor for managing and coordinating the synthesis process. 
 /// 
@@ -97,7 +97,6 @@ pub struct Executor {
     /// The current non-terminal index being processed.
     pub cur_nt: Cell<usize>,
     /// No longer used
-    pub(crate) other: OtherData,
     /// Queue of tasks waiting for cost limit to be released.
     pub waiting_tasks: UnsafeCell<TaskWaitingCost>,
     /// Top task to be executed.
@@ -116,11 +115,9 @@ impl Executor {
     }
     /// Creates a new instance. 
     pub fn new(ctx: Context, cfg: Cfg) -> Self {
-        let all_str_const = cfg[0].rules.iter().flat_map(|x| if let ProdRule::Const(ConstValue::Str(s)) = x { Some(*s) } else { None }).collect();
         let data = Data::new(&cfg, &ctx);
         let deducers = (0..cfg.len()).map(|i, | DeducerEnum::from_nt(&cfg, &ctx, i)).collect_vec();
-        let other = OtherData { all_str_const };
-        let exec = Self { counter: 0.into(), subproblem_count: 0.into(), ctx, cfg, data, other, deducers, expr_collector: Vec::new().into(),
+        let exec = Self { counter: 0.into(), subproblem_count: 0.into(), ctx, cfg, data, deducers, expr_collector: Vec::new().into(),
             cur_size: 0.into(), cur_nt: 0.into(), waiting_tasks: TaskWaitingCost::new().into(),
             top_task: task::spawn(futures::future::pending()).into(), bridge: Bridge::new(),
             start_time: Instant::now() };

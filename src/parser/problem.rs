@@ -207,6 +207,10 @@ impl Type {
     /// 
     pub fn parse(pair: Pair<'_, Rule>) -> Result<Self, Error> {
         let [symbol]: [_; 1] = pair.clone().into_inner().collect_vec().try_into().unwrap();
+        if pair.as_str().contains("BitVec") {
+            let b = symbol.as_str().parse::<usize>().map_err(|_| new_custom_error_span("Can not parse BitVec".into(), pair.as_span()))?;
+            return Ok(Self::BitVector(b));
+        }
         let basic = match symbol.as_str() {
             "Int" => Self::Int,
             "String" => Self::Str,

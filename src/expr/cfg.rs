@@ -10,7 +10,6 @@ use crate::{
 use derive_more::{DebugCustom, Deref, DerefMut, From, Into, Index, IndexMut};
 use itertools::Itertools;
 use joinery::prelude::*;
-use crate::text::formatting::Op1EnumToFormattingOp;
 
 // use super::{Expr, context::Context, Op1, Op3, Op2};
 
@@ -88,7 +87,6 @@ pub struct NonTerminal {
     pub name: String,
     pub ty: Type,
     pub rules: Vec<ProdRule>,
-    pub start: bool,
     pub config: Config,
 }
 
@@ -159,6 +157,28 @@ impl NonTerminal {
             }
         }
         result
+    }
+    pub fn map_nt_number(&mut self, mut f: impl FnMut(usize) -> usize) {
+        for prod in self.rules.iter_mut() {
+            match prod {
+                ProdRule::Nt(n) => {
+                    *n = f(*n);
+                }
+                ProdRule::Op1(_, n) => {
+                    *n = f(*n);
+                }
+                ProdRule::Op2(_, n1, n2) => {
+                    *n1 = f(*n1);
+                    *n2 = f(*n2);
+                }
+                ProdRule::Op3(_, n1, n2, n3) => {
+                    *n1 = f(*n1);
+                    *n2 = f(*n2);
+                    *n3 = f(*n3);
+                }
+                _ => {}
+            }
+        }
     }
 }
 #[derive(Clone)]
@@ -252,7 +272,6 @@ impl Cfg {
                 name: nt.0.clone(),
                 ty: nt.1,
                 rules: nt.2.iter().map(|p| ProdRule::new(p, problem)).collect(), 
-                start: i == 0,
                 config: nt.3.clone(),
             }).collect_vec(),
             config: problem.cfg.config.clone().into(),
@@ -266,6 +285,14 @@ impl Cfg {
     /// 
     pub fn find_by_type(&self, ty: Type) -> Option<usize> {
         self.iter().enumerate().find(|x| x.1.ty == ty).map(|(i, _)| i)
+    }
+    pub fn change_start(&self, nstart: usize) -> Self {
+        let mut new = self.clone();
+        for nt in new.iter_mut() {
+            nt.map_nt_number(|i| if i == 0 { nstart } else if i == nstart { 0 } else { i });
+        }
+        new.swap(0, nstart);
+        new
     }
 }
 

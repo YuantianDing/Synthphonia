@@ -1,9 +1,10 @@
-use std::{collections::HashMap, cell::UnsafeCell};
+use std::{cell::UnsafeCell, collections::HashMap, hash::{DefaultHasher, Hash, Hasher}};
 
+use futures::StreamExt;
 use itertools::Itertools;
 use simple_rc_async::sync::broadcast::{self, Sender};
 
-use crate::{value::Value, utils::UnsafeCellExt};
+use crate::{utils::UnsafeCellExt, value::{Type, Value}};
 
 
 pub type ListStr = &'static [&'static str];
@@ -24,43 +25,90 @@ pub fn listsubseq(that: ListStr, this: ListStr) -> bool {
     }
     return iter.peek() == None;
 }
-pub(crate) struct ListData {
-    table: HashMap<String, Vec<(ListStr, broadcast::Sender<Value>)>>
-}
 
-impl ListData {
-    /// Creates and returns a new instance containing an empty hash table. 
-    /// This function initializes an internal state with a hash map that can later be employed to store associations of string lists and related broadcast sender values for synthesis term dispatching.
-    pub(crate) fn new() -> Self { ListData { table: HashMap::new() } }
-    #[inline]
-    /// Updates term dispatch channels by evaluating each element in the provided list and propagating associated values where applicable.
-    pub(crate) fn update(&mut self, v: ListStr, value: Value) -> Result<(), ()> {
-        todo!()
-    }
-    /// Adds a new tuple consisting of a list-based key and its associated communication channel to a managed table. 
-    pub(crate) fn listen_at(&mut self, l: ListStr, chan: Sender<Value>) {
-        todo!()
-    }
-}
+pub type ListData = HashMap<String, Vec<broadcast::Sender<Value>>>;
+
 /// Term dispatcher for contains
-pub struct Data(UnsafeCell<Vec<(usize, ListData)>>);
+pub struct Data(UnsafeCell<Vec<ListData>>);
 
 impl Data {
 
-    pub fn new(output: Value, indices: &[usize]) -> Self {
-        todo!();
+    pub fn new(len: usize, ty: Type) -> Option<Self> {
+        if let Type::ListStr = ty {
+            Some(Data(vec![HashMap::new(); len].into()))
+        } else { None }
     }
-    pub fn len(&self) -> usize { self.get().len() }
-    fn get(&self) -> &mut [(usize, ListData)] {
-        unsafe{ self.0.as_mut().as_mut_slice() }
+    fn get(&self) -> &mut Vec<ListData> {
+        unsafe { self.0.as_mut() }
     }
-    pub fn update(&self, value: Value) -> Result<(), ()> {
+    pub fn update(&self, value: Value) -> () {
         if let Value::ListStr(ls) = value {
-            for (i, d) in self.get() {
-                d.update(ls[*i], value)?;
+            let mut iter = ls.iter().zip(self.get().iter());
+            let mut senders = HashMap::<broadcast::Sender<Value>, usize>::new();
+            let (sl0, data0) = iter.next().unwrap();
+            let mut position = 1;
+            for s in sl0.iter() {
+                if let Some(a) = data0.get(*s) {
+                    for sd in a {
+                        senders.insert(sd.clone(), position);
+                    }
+                }
+            }
+            if senders.is_empty() { return; }
+            
+            for (sl, data) in iter {
+                position <<= 1;
+                for s in sl.iter() {
+                    if let Some(a) = data.get(*s) {
+                        for sd in a {
+                            if let Some(mask) = senders.get_mut(sd) {
+                                *mask |= position;
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (sd, mask) in senders {
+                if mask >= (1 << ls.len()) - 1 {
+                    sd.send(value);
+                }
             }
         }
-        Ok(())
+    }
+
+    pub fn listen_at(&self, value: Value) -> broadcast::Reciever<Value> {
+        if let Value::ListStr(ls) = value {
+            let sd = broadcast::channel();
+            for (sl, data) in ls.iter().zip(self.get().iter_mut()) {
+                for s in sl.iter() {
+                    if let Some(a) = data.get_mut(*s) {
+                        a.push(sd.clone());
+                    } else {
+                        data.insert((*s).to_string(), vec![sd.clone()]);
+                    }
+                }
+            }
+            sd.reciever()
+        } else if let Value::Str(s) = value {
+            let sd = broadcast::channel();
+            for (s, data) in s.iter().zip(self.get().iter_mut()) {
+                if let Some(a) = data.get_mut(*s) {
+                    a.push(sd.clone());
+                } else {
+                    data.insert(s.to_string(), vec![sd.clone()]);
+                }
+            }
+            sd.reciever()
+        } else { panic!("Unsupported Type for Contains") }
+    }
+
+    #[inline(always)]
+    pub async fn listen_for_each<T>(&self, value: Value, mut f: impl FnMut(Value) -> Option<T>) -> T {
+        let mut rv = self.listen_at(value);
+        loop {
+            if let Some(t) = f(rv.next().await.unwrap()) { return t; }
+        }
     }
 }
 

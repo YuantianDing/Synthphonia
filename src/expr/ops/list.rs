@@ -87,9 +87,8 @@ new_op1!(FLen, "list.flen",
     ListStr -> Float { |s| F64::from_usize(s.len()) }
 );
 
-new_op2!(Filter, "list.filter",
-    (ListStr, Bool) -> Int { |s| panic!("Could not execuate Filter") }
-);
-
 pub mod map;
 pub use map::Map;
+
+pub mod filter;
+pub use filter::Filter;

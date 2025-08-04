@@ -40,6 +40,18 @@ impl ConstValue {
                     Ok(Self::Int(f))
                 }
             }
+            Rule::hexnum => {
+                let s = value.as_str().trim_start_matches("#x");
+                let f = u64::from_str_radix(s, 16)
+                    .map_err(|_| new_custom_error_span("Can not parse hex".into(), value.as_span()))?;
+                Ok(Self::BitVector(s.len() * 4, f))
+            }
+            Rule::binnum => {
+                let s = value.as_str().trim_start_matches("#b");
+                let f = u64::from_str_radix(s, 2)
+                    .map_err(|_| new_custom_error_span("Can not parse binary".into(), value.as_span()))?;
+                Ok(Self::BitVector(s.len(), f))
+            }
             Rule::strlit => Ok(Self::Str(value.as_str()[1..(value.as_str().len() - 1)].galloc_str())),
             Rule::boollit => match value.as_str() {
                 "true" => Ok(Self::Bool(true)),

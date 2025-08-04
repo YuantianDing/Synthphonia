@@ -37,6 +37,7 @@
       (ntList (List String) (
             (str.split ntString ntString)
             (list.map ntList)
+            (list.filter ntList)
       ))
       #data.listsubseq.sample:0
 ))

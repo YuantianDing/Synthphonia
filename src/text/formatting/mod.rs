@@ -53,16 +53,16 @@ macro_rules! for_all_formatting_op {
     };
 }
 
-#[extension(pub trait Op1EnumToFormattingOp)]
+
 impl Op1Enum {
-    fn is_formatting_op(&self) -> bool {
+    pub fn is_formatting_op(&self) -> bool {
         macro_rules! _do {($op:ident) => {
             if let Self::$op(_) = self { return true }
         };}
         crate::for_all_formatting_op!();
         false
     }
-    fn format_all(&self, input: &'static [&'static str]) -> Option<(Op1Enum, Value, Value, Value)> {
+    pub fn format_all(&self, input: &'static [&'static str]) -> Option<(Op1Enum, Value, Value, Value)> {
         macro_rules! _do {($op:ident) => {
             if let Self::$op(op) = self { return op.format_all(input).map(|(a, b, c, d)| (a.into(), b, c, d)); }
         };}

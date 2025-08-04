@@ -26,6 +26,8 @@ pub use self::list::*;
 
 pub mod date;
 pub use date::*;
+pub mod bv;
+pub use bv::*;
 pub mod macros;
 
 #[enum_dispatch]
@@ -123,6 +125,7 @@ pub enum Op1Enum {
     RetainL,
     RetainLN,
     Map,
+    Filter,
     Uppercase,
     Lowercase,
     AsMonth,
@@ -150,6 +153,8 @@ pub enum Op1Enum {
     FIsZero,
     FNotNeg,
     FLen,
+    BvNot,
+    BvNeg
 }
 impl std::fmt::Display for Op1Enum {
     /// Formats the operation represented by `Op1Enum` for printing. 
@@ -244,11 +249,11 @@ pub enum Op2Enum {
     Sub,
     Head,
     Tail,
-    Filter,
     TimeFloor,
     TimeAdd,
     Floor, Round, Ceil,
-    FAdd, FSub, FFloor, FRound, FCeil, FCount, FShl10, TimeMul, StrAt
+    FAdd, FSub, FFloor, FRound, FCeil, FCount, FShl10, TimeMul, StrAt,
+    BvAdd, BvSub, BvMul, BvUDiv, BvURem, BvSDiv, BvSRem, BvOr, BvAnd, BvXor, BvShl, BvAShr, BvLShr
 }
 
 impl std::fmt::Display for Op2Enum {

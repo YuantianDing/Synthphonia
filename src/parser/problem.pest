@@ -1,19 +1,23 @@
 letter = { 'a'..'z' | 'A'..'Z' }
 special_symbols = { "~" | "!" | "@" | "$" | "%" | "^" | "&" | "*" | "_" | "-" | "+" | "=" | "<" | ">" | "." | "?" | "/" }
 digit = { '0'..'9' }
+hexdigit = { '0'..'9' | 'A'..'F' | 'a'..'f' }
+bindigit = { "0" | "1" }
 
 symbol = @{ (letter | special_symbols) ~ (letter | special_symbols | digit)* }
 numeral = @{ (digit | "." | "+" | "-")+ }
+hexnum = @{ "#x" ~ hexdigit+ }
+binnum = @{ "#b" ~ bindigit+ }
 raw_string = { (!("\\" | "\"") ~ ANY)+ }
 strlit = @{ "\"" ~ (raw_string | "\\" ~ ANY)* ~ "\"" }
 boollit = @{ "true" | "false" | "null"}
-value = { numeral | strlit | boollit }
+value = { numeral | binnum | hexnum | strlit | boollit }
 start_comment = @{ (";" ~ (!newline ~ ANY)*)? }
 config_entry = { "#" ~ symbol ~ ":" ~ (value|symbol|expr) }
 config = { config_entry+ }
 
 logic = {"(" ~ "set-logic" ~ symbol ~ ")"}
-typ = { symbol | ("(" ~ "List" ~ symbol ~ ")") }
+typ = { symbol | ("(" ~ "List" ~ symbol ~ ")") | ("(" ~ ("_")? ~ "BitVec" ~ numeral ~ ")") }
 arg = { "(" ~ symbol ~ typ ~ ")" }
 arglist = { "(" ~ arg* ~ ")" }
 prod = { (value | symbol | "(" ~ (symbol | config)+ ~ ")") }

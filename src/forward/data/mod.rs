@@ -33,7 +33,7 @@ pub struct Data {
     pub all_eq: all_eq::Data,
     pub substr: Option<UnsafeCell<substr::Data>>,
     pub prefix: Option<UnsafeCell<prefix::Data>>,
-    // pub listsubseq: listsubseq::Data,
+    pub contains: Option<contains::Data>,
     pub len: Option<UnsafeCell<len::Data>>,
     pub to: TextObjData,
     pub new_ev: RefCell<Vec<(&'static Expr, Value)>>,
@@ -48,7 +48,7 @@ impl Data {
                 all_eq: all_eq::Data::new(),
                 substr: substr::Data::new(ctx.output, cfg.config.substr_limit),
                 prefix: prefix::Data::new(ctx.output, usize::MAX),
-                // listsubseq: listsubseq::Data::new(ctx.output, (0..listsubseq_sample).collect_vec().as_slice() ),
+                contains: contains::Data::new(ctx.output.len(), nt.ty),
                 len: if nt.ty != Type::ListStr && cfg[i].get_op1("list.map").is_some() { None } else { Some(len::Data::new().into()) },
                 to: TextObjData::new(),
                 new_ev: Vec::<(&'static Expr, Value)>::new().into()
@@ -80,6 +80,7 @@ impl Data {
             if let Some(s) = self.substr() { s.update(v, exec); }
             if let Some(s) = self.prefix() { s.update(v, exec); }
             if let Some(l) = self.len() { l.update(v, exec); };
+            if let Some(c) = self.contains.as_ref() { c.update(v); }
             // self.listsubseq.update(v)?;
             self.to.update(exec, e, v);
             Ok(Some(e))

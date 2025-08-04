@@ -7,7 +7,7 @@ use itertools::Itertools;
 use mapped_futures::mapped_futures::MappedFutures;
 use rand::Rng;
 use rand::seq::SliceRandom;
-use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr, Expression}, forward::executor::Executor, galloc::{self, AllocForAny}, info, never, tree_learning::{bits::BoxSliceExt, tree_learning, Bits}};
+use crate::{backward::Problem, debg, expr::{cfg::Cfg, context::Context, Expr, Expression}, forward::executor::Executor, galloc::{self, AllocForAny}, info, log, never, tree_learning::{bits::BoxSliceExt, tree_learning, Bits}};
 
 
 
@@ -322,9 +322,10 @@ pub fn cond_search_thread(mut cfg: Cfg, ctx: Context) -> JoinHandle<Expression> 
 /// If the search produces a solution, the resulting expression is returned; otherwise, the process is aborted. 
 /// The asynchronous execution is managed through the Tokio runtime and the result is encapsulated within a join handle.
 pub fn new_thread_with_limit(cfg: Cfg, ctx: Context) -> JoinHandle<Expression> {
+    let log_level = log::log_level();
     tokio::spawn(async move {
-        if let Some(p) = {
-            
+        log::set_log_level(log_level);
+        if let Some(p) = {     
             Executor::new(ctx, cfg).solve_top_with_limit().map(|e| e.to_expression())
         } {
             p

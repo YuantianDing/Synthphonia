@@ -35,7 +35,7 @@ serde = { version = "1.0.183", features = ["derive"] }
 smallvec = "1.11.1"
 spin = "0.9.8"
 tokio = { version = "1.37.0", features = ["full", "rt"] }
-simple-rc-async = {path="../../rc_async"}
+simple-rc-async = "0.1.1"
 radix_trie = "0.2.1"
 counter = "0.6.0"
 ahash = "0.8.11"
